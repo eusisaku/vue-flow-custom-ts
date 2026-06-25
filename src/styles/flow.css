@@ -1,0 +1,118 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+
+:root {
+  --font-ui: 'DM Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+body {
+  font-family: var(--font-ui) !important;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================
+   Vue Flow Dark Theme — Workflow Editor
+   ============================================ */
+
+.vue-flow {
+  background: #080e17 !important;
+}
+
+.vue-flow__pane {
+  background: #080e17 !important;
+}
+
+/* Edge paths */
+.vue-flow__edge-path {
+  stroke-width: 1.5;
+  transition: stroke-width 0.2s, stroke 0.2s;
+}
+
+.vue-flow__edge-path:hover {
+  stroke-width: 2.5;
+}
+
+.vue-flow__edge.selected .vue-flow__edge-path {
+  stroke: #00b8ff !important;
+  stroke-width: 2;
+}
+
+/* Connection line while dragging */
+.vue-flow__connection-path {
+  stroke: #00e5a0 !important;
+  stroke-width: 1.5 !important;
+  stroke-dasharray: 6 4 !important;
+}
+
+/* Handles */
+.vue-flow__handle {
+  width: 10px !important;
+  height: 10px !important;
+  background: #00e5a0 !important;
+  border: 2px solid #080e17 !important;
+  border-radius: 50% !important;
+  transition: all 0.2s !important;
+}
+
+.vue-flow__handle:hover {
+  transform: scale(1.5) !important;
+  background: #00ffb3 !important;
+  box-shadow: 0 0 12px rgba(0, 229, 160, 0.7) !important;
+}
+
+.vue-flow__handle-top { top: -5px !important; }
+.vue-flow__handle-bottom { bottom: -5px !important; }
+.vue-flow__handle-left { left: -5px !important; }
+.vue-flow__handle-right { right: -5px !important; }
+
+/* MiniMap dark */
+.vue-flow__minimap {
+  background: #0d1521 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid #1e2d3d !important;
+}
+
+/* Controls dark */
+.vue-flow__controls {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+  border-radius: 10px !important;
+  border: 1px solid #1e2d3d !important;
+  overflow: hidden;
+  background: #0d1521 !important;
+}
+
+.vue-flow__controls-button {
+  background: #0d1521 !important;
+  border: none !important;
+  border-bottom: 1px solid #1e2d3d !important;
+  padding: 8px !important;
+  transition: all 0.2s !important;
+  width: 36px !important;
+  height: 36px !important;
+  fill: #64748b !important;
+}
+
+.vue-flow__controls-button:hover {
+  background: #1e2d3d !important;
+  fill: #00e5a0 !important;
+}
+
+.vue-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+
+/* Selection box */
+.vue-flow__selection {
+  background: rgba(0, 229, 160, 0.05) !important;
+  border: 1.5px solid #00e5a060 !important;
+  border-radius: 6px !important;
+}
+
+.vue-flow__node.selected {
+  outline: none !important;
+}
+
+.vue-flow__panel {
+  margin: 0 !important;
+}

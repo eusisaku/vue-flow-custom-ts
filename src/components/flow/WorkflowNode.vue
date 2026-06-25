@@ -1,0 +1,397 @@
+<template>
+  <div class="wf-node-wrapper" @mouseenter="isHovered = true" @mouseleave="isHovered = false">
+    <!-- IF/ELSE condition badge on top -->
+    <div v-if="data.conditionLabel" class="condition-badge"
+      :class="data.conditionType === 'true' ? 'condition-true' : 'condition-false'">
+      {{ data.conditionLabel }}
+    </div>
+
+    <div class="wf-node" :class="['wf-node--' + data.nodeType, { 'wf-node--selected': selected, 'wf-node--collapsed': !isExpanded }]">
+      <!-- Edit button (hover) -->
+      <Transition name="fade-btn">
+        <button v-if="isHovered" class="wf-edit-btn" @click.stop="handleEdit" title="Edit node">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          Edit
+        </button>
+      </Transition>
+
+      <!-- Node Header (clickable to expand/collapse) -->
+      <div class="wf-node__header wf-node__header--clickable" @click.stop="toggleExpand">
+        <div class="wf-node__icon" :class="'wf-icon--' + data.nodeType">
+          <span v-if="data.nodeType === 'command'" class="icon-terminal">&gt;_</span>
+          <span v-else-if="data.nodeType === 'function'" class="icon-fn">ƒ</span>
+          <span v-else-if="data.nodeType === 'decision'" class="icon-decision">⟨/⟩</span>
+          <span v-else class="icon-default">●</span>
+        </div>
+        <div class="wf-node__meta">
+          <span class="wf-node__type-badge" :class="'badge--' + data.nodeType">
+            {{ data.nodeType?.toUpperCase() }}
+          </span>
+          <div class="wf-node__title">{{ data.label }}</div>
+          <div class="wf-node__subtitle">{{ data.subtitle }}</div>
+        </div>
+        <!-- Expand/Collapse Chevron -->
+        <button class="wf-expand-btn" :class="{ 'wf-expand-btn--expanded': isExpanded }" :title="isExpanded ? 'Collapse' : 'Expand'">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Collapsible Body -->
+      <div class="wf-node__body" :class="{ 'wf-node__body--expanded': isExpanded, 'wf-node__body--collapsed': !isExpanded }">
+        <!-- Command List -->
+        <div v-if="data.nodeType === 'command' && data.commands?.length" class="wf-node__commands">
+          <div v-for="(cmd, idx) in data.commands" :key="idx" class="wf-cmd-item">
+            <span class="wf-cmd-index">{{ idx + 1 }}.</span>
+            <span class="wf-cmd-text">{{ cmd.text }}</span>
+            <span v-if="cmd.tag" class="wf-cmd-tag" :class="'tag--' + cmd.tagType">{{ cmd.tag }}</span>
+          </div>
+        </div>
+
+        <!-- Function Params -->
+        <div v-if="data.nodeType === 'function'" class="wf-node__params">
+          <div class="wf-params-row">
+            <span class="wf-params-label">PARAMS:</span>
+            <span class="wf-params-bound">{{ data.bound || '1 BOUND' }}</span>
+          </div>
+          <div class="wf-params-value">{{ data.params || 'getProduct' }}</div>
+        </div>
+      </div>
+
+      <!-- Action Footer: ALWAYS RENDERED — handles must always be in DOM -->
+      <div class="wf-node__actions">
+        <div class="wf-action wf-action--success">
+          <Handle type="source" :position="Position.Bottom" id="success" class="action-handle action-handle--success" />
+          <span class="action-dot action-dot--success"></span>
+          Success
+        </div>
+        <div class="wf-action wf-action--reset">
+          <Handle type="source" :position="Position.Bottom" id="reset" class="action-handle action-handle--reset" />
+          Reset
+        </div>
+        <div class="wf-action wf-action--failure">
+          <Handle type="source" :position="Position.Bottom" id="failure" class="action-handle action-handle--failure" />
+          Failure
+          <span class="action-dot action-dot--failure"></span>
+        </div>
+      </div>
+
+      <!-- Edge Handles -->
+      <Handle type="target" :position="Position.Top" id="top" class="wf-handle wf-handle--top" />
+      <Handle type="source" :position="Position.Right" id="right" class="wf-handle wf-handle--right" />
+      <Handle type="target" :position="Position.Left" id="left" class="wf-handle wf-handle--left" />
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { Handle, Position, useVueFlow } from '@vue-flow/core'
+import type { WorkflowNodeData } from '../../types'
+
+interface Props {
+  id: string
+  data: WorkflowNodeData
+  selected?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  selected: false
+})
+
+const { updateNodeInternals } = useVueFlow()
+
+const isHovered = ref(false)
+const isExpanded = ref(false)
+let animFrameId: number | null = null
+let resizeObserver: ResizeObserver | null = null
+
+const el = ref<HTMLElement | null>(null)
+
+function handleEdit(): void {
+  if (typeof props.data.onEdit === 'function') {
+    props.data.onEdit(props.id)
+  }
+}
+
+function toggleExpand(): void {
+  isExpanded.value = !isExpanded.value
+  updateNodeInternals(props.id)
+
+  if (animFrameId !== null) cancelAnimationFrame(animFrameId)
+
+  const start = performance.now()
+  const duration = 400
+
+  const tick = () => {
+    updateNodeInternals(props.id)
+    if (performance.now() - start < duration) {
+      animFrameId = requestAnimationFrame(tick)
+    } else {
+      updateNodeInternals(props.id)
+    }
+  }
+
+  animFrameId = requestAnimationFrame(tick)
+}
+
+onMounted(() => {
+  resizeObserver = new ResizeObserver(() => {
+    updateNodeInternals(props.id)
+  })
+  const rootEl = document.getElementById(props.id) ?? el.value
+  if (rootEl) resizeObserver.observe(rootEl)
+})
+
+onBeforeUnmount(() => {
+  if (resizeObserver) resizeObserver.disconnect()
+  if (animFrameId !== null) cancelAnimationFrame(animFrameId)
+})
+</script>
+
+<style scoped>
+.wf-node-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.condition-badge {
+  position: absolute;
+  top: -34px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  z-index: 5;
+}
+.condition-true { background: #1a3a2a; color: #00e5a0; border: 1px solid #00e5a0; }
+.condition-false { background: #3a1a1a; color: #ff4d4d; border: 1px solid #ff4d4d; }
+
+.wf-edit-btn {
+  position: absolute;
+  top: -12px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #0d1521;
+  border: 1px solid #00e5a040;
+  color: #00e5a0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 4px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  z-index: 10;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+  transition: all 0.2s;
+}
+.wf-edit-btn:hover {
+  background: #00e5a0;
+  color: #080e17;
+  border-color: #00e5a0;
+}
+
+.fade-btn-enter-active, .fade-btn-leave-active { transition: opacity 0.15s, transform 0.15s; }
+.fade-btn-enter-from, .fade-btn-leave-to { opacity: 0; transform: translateY(4px); }
+
+.wf-node {
+  background: #111827;
+  border: 1.5px solid #1e2d3d;
+  border-radius: 12px;
+  min-width: 265px;
+  max-width: 305px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  transition: all 0.25s ease;
+  overflow: visible;
+  position: relative;
+  cursor: pointer;
+}
+.wf-node:hover {
+  border-color: #00e5a060;
+  box-shadow: 0 8px 40px rgba(0, 229, 160, 0.12);
+  transform: translateY(-2px);
+}
+.wf-node--selected {
+  border-color: #00b8ff !important;
+  box-shadow: 0 0 0 2px rgba(0, 184, 255, 0.25), 0 8px 32px rgba(0,0,0,0.5) !important;
+}
+
+.wf-node__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid #1e2d3d;
+  overflow: hidden;
+  transition: border-color 0.25s;
+}
+
+.wf-node__header--clickable {
+  cursor: pointer;
+  user-select: none;
+  align-items: center;
+}
+.wf-node__header--clickable:hover {
+  background: rgba(0, 229, 160, 0.03);
+}
+
+.wf-expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border: 1px solid #1e2d3d;
+  background: #0d1521;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+  color: #4a5568;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.wf-expand-btn svg { transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); transform: rotate(0deg); }
+.wf-expand-btn--expanded svg { transform: rotate(180deg); }
+.wf-expand-btn:hover { border-color: #00e5a040; color: #00e5a0; background: rgba(0, 229, 160, 0.08); }
+
+.wf-node__body {
+  overflow: hidden;
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.28s ease;
+}
+.wf-node__body--expanded { max-height: 600px; opacity: 1; }
+.wf-node__body--collapsed { max-height: 0; opacity: 0; }
+.wf-node--collapsed .wf-node__header { border-bottom-color: transparent; }
+
+.wf-node__icon {
+  width: 36px; height: 36px; min-width: 36px;
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; flex-shrink: 0;
+}
+.wf-icon--command { background: #0a3340; color: #00e5c0; font-size: 12px; font-family: var(--font-mono); }
+.wf-icon--function { background: #2d1a4a; color: #a78bfa; font-size: 20px; }
+.wf-icon--decision { background: #1a2d40; color: #38bdf8; font-size: 12px; }
+.icon-terminal { font-family: var(--font-mono); font-size: 11px; font-weight: 900; }
+.icon-fn { font-size: 22px; font-style: italic; }
+
+.wf-node__meta { flex: 1; min-width: 0; }
+.wf-node__type-badge {
+  display: inline-block;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+  padding: 2px 6px; border-radius: 4px; margin-bottom: 4px;
+}
+.badge--command { background: #0a3340; color: #00e5c0; border: 1px solid #00e5c030; }
+.badge--function { background: #2d1a4a; color: #a78bfa; border: 1px solid #a78bfa30; }
+.badge--decision { background: #1a2d40; color: #38bdf8; border: 1px solid #38bdf830; }
+
+.wf-node__title {
+  font-size: 13px; font-weight: 600; color: #e2e8f0;
+  line-height: 1.35; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.wf-node__subtitle { font-size: 11px; color: #4a5568; margin-top: 2px; }
+
+.wf-node__commands {
+  padding: 8px 14px;
+  display: flex; flex-direction: column; gap: 4px;
+  background: #0d1521;
+}
+.wf-cmd-item {
+  display: flex; align-items: flex-start; gap: 6px;
+  padding: 5px 8px;
+  background: #111827;
+  border-radius: 6px;
+  border: 1px solid #1e2d3d;
+}
+.wf-cmd-index { font-size: 10px; color: #4a5568; min-width: 14px; flex-shrink: 0; margin-top: 1px; font-family: var(--font-mono); }
+.wf-cmd-text {
+  font-size: 10px; color: #10b981;
+  font-family: var(--font-mono);
+  flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4;
+}
+.wf-cmd-tag { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; }
+.tag--true { background: #1a3a2a; color: #00e5a0; }
+.tag--false { background: #3a1a1a; color: #ff6b6b; }
+
+.wf-node__params {
+  padding: 10px 14px;
+  background: #0d1521;
+  border-top: 1px solid #1e2d3d;
+}
+.wf-params-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.wf-params-label { font-size: 9px; color: #4a5568; font-weight: 700; letter-spacing: 0.05em; }
+.wf-params-bound { font-size: 9px; color: #4a5568; font-weight: 700; }
+.wf-params-value {
+  font-size: 12px; color: #10b981;
+  font-family: var(--font-mono);
+  background: #111827; border: 1px solid #1e2d3d; border-radius: 5px; padding: 5px 8px;
+}
+
+.wf-node__actions {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px; border-top: 1px solid #1e2d3d; gap: 6px;
+}
+.wf-action {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 500; padding: 5px 10px;
+  border-radius: 6px; border: none; cursor: crosshair; transition: all 0.2s;
+  background: transparent; color: #64748b;
+}
+.wf-action--success { color: #00e5a0; border: 1px solid #00e5a030; background: #00e5a010; }
+.wf-action--success:hover { background: #00e5a020; }
+.wf-action--reset { color: #64748b; border: 1px solid #1e2d3d; }
+.wf-action--reset:hover { color: #94a3b8; border-color: #2d4060; }
+.wf-action--failure { color: #ff4d4d; border: 1px solid #ff4d4d30; background: #ff4d4d10; }
+.wf-action--failure:hover { background: #ff4d4d20; }
+
+.action-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.action-dot--success { background: #00e5a0; box-shadow: 0 0 6px #00e5a0; }
+.action-dot--failure { background: #ff4d4d; box-shadow: 0 0 6px #ff4d4d; }
+
+.wf-action :deep(.action-handle) {
+  opacity: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  top: 0 !important;
+  left: 0 !important;
+  transform: none !important;
+  border-radius: 6px !important;
+  cursor: crosshair !important;
+  margin: 0 !important;
+}
+
+:deep(.wf-handle) {
+  width: 10px !important; height: 10px !important;
+  background: #00e5a0 !important;
+  border: 2px solid #111827 !important;
+  border-radius: 50% !important;
+  transition: all 0.2s !important;
+  opacity: 0.35;
+}
+.wf-node-wrapper:hover :deep(.wf-handle) { opacity: 1; }
+:deep(.wf-handle:hover) {
+  transform: scale(1.5) !important;
+  box-shadow: 0 0 12px rgba(0, 229, 160, 0.7) !important;
+  background: #00ffb3 !important;
+}
+:deep(.wf-handle--top) { top: -5px !important; left: 50% !important; transform: translateX(-50%) !important; }
+:deep(.wf-handle--top:hover) { transform: translateX(-50%) scale(1.5) !important; }
+:deep(.wf-handle--left) { left: -5px !important; top: 50% !important; transform: translateY(-50%) !important; }
+:deep(.wf-handle--left:hover) { transform: translateY(-50%) scale(1.5) !important; }
+:deep(.wf-handle--right) { right: -5px !important; top: 50% !important; transform: translateY(-50%) !important; }
+:deep(.wf-handle--right:hover) { transform: translateY(-50%) scale(1.5) !important; }
+</style>
