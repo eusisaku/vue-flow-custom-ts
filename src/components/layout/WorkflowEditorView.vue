@@ -210,7 +210,7 @@ function confirmSaveWorkflow(): void {
   margin-left: var(--sidebar-w, 240px);
   flex: 1; display: flex; flex-direction: column; min-width: 0; height: 100vh;
 }
-.page-content { flex: 1; position: relative; }
+.page-content { flex: 1; position: relative; display: flex; flex-direction: column; }
 
 .editor-toolbar {
   display: flex; align-items: center; justify-content: space-between;

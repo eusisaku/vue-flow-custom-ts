@@ -19,7 +19,7 @@
       class="wf-flow"
     >
       <Background variant="dots" :gap="28" :size="1.3" color="#1a2535" />
-      <Controls position="bottom-right" />
+      <Controls position="bottom-left" />
       <MiniMap
         :style="{ height: '140px', width: '185px', background: '#0a1020', border: '1px solid #1e2d3d', borderRadius: '10px' }"
         :node-color="() => '#182030'"
@@ -398,7 +398,7 @@ defineExpose({
 <style scoped>
 .wf-container {
   width: 100%;
-  height: 100vh;
+  height: 100%;
   background: #070d18;
   position: relative;
 }
