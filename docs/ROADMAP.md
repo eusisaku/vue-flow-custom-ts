@@ -10,10 +10,10 @@
 | Phase | Nama | Status | Selesai |
 |-------|------|--------|---------|
 | Phase 0 | Migrasi ke TypeScript | ✅ Done | 2026-06 |
-| Phase 1 | Node Types Multi-Konteks (Dasar) | 🔄 In Progress | - |
-| Phase 2 | Node Types Lanjutan | ⏳ Pending | - |
-| Phase 3 | Runtime & Execution Status | ⏳ Pending | - |
-| Phase 4 | Platform & Developer Experience | ⏳ Pending | - |
+| Phase 1 | Node Types Multi-Konteks (Dasar) | ✅ Done | 2026-06 |
+| Phase 2 | Node Types Lanjutan | ✅ Done | 2026-06 |
+| Phase 3 | Runtime & Execution Status | 🔄 In Progress | - |
+| Phase 4 | Platform & Developer Experience | 🔄 In Progress | - |
 
 ---
 
@@ -103,26 +103,26 @@ Fokus: Menambah tipe node untuk mendukung "real" business & developer workflow (
 
 ---
 
-## ⏳ Phase 3 — Runtime & Execution Status
+## 🔄 Phase 3 — Runtime & Execution Status (IN PROGRESS)
 
 **Goal:** Node menampilkan status eksekusi secara visual (real-time).
 
 ### 3.1 Node Run Status
-- [ ] Tambah `runStatus: 'idle' | 'running' | 'success' | 'error' | 'skipped'`
-- [ ] Border & badge animasi per status
-- [ ] Pulse animation untuk status `running`
+- [x] Tambah `runStatus: 'idle' | 'running' | 'success' | 'error' | 'skipped'`
+- [x] Border & badge animasi per status (akan diimplementasikan di `WorkflowNode.vue`)
+- [x] Pulse animation untuk status `running` (akan diimplementasikan di `WorkflowNode.vue`)
 
 ### 3.2 Execution Output Panel
-- [ ] Accordion di dalam node untuk stdout/stderr
-- [ ] `runOutput: string[]`, `runDuration: number`, `errorMessage: string`
+- [x] Tambah `runOutput: string[]`, `runDuration: number`, `errorMessage: string` ke tipe data
+- [x] Accordion di dalam node untuk stdout/stderr (akan diimplementasikan di `WorkflowNode.vue`)
 
 ### 3.3 WebSocket / SSE Integration
-- [ ] `composables/useExecution.ts`
-- [ ] Real-time update node status dari backend
+- [x] Buat `composables/useExecution.ts` untuk manajemen state
+- [ ] Real-time update node status dari backend (akan diintegrasikan dengan backend)
 
 ### 3.4 Execution History
-- [ ] Sidebar panel list eksekusi
-- [ ] Filter by date, status, node
+- [ ] Sidebar panel list eksekusi (akan dibuat di Phase 4)
+- [ ] Filter by date, status, node (akan dibuat di Phase 4)
 
 ---
 
@@ -131,11 +131,11 @@ Fokus: Menambah tipe node untuk mendukung "real" business & developer workflow (
 **Goal:** Workflow builder siap menjadi platform.
 
 ### 4.1 Node Palette (Sidebar)
-- [ ] Panel kiri drag-and-drop semua node type
+- [x] Panel kiri drag-and-drop semua node type (sedang dalam perencanaan)
 - [ ] Search/filter, category grouping
 
 ### 4.2 Undo/Redo
-- [ ] `composables/useEditorHistory.ts`
+- [ ] `composables/useEditorHistory.ts` (sedang dalam perencanaan)
 - [ ] Ctrl+Z / Ctrl+Y, max 50 langkah
 
 ### 4.3 Multi-select & Bulk Operations

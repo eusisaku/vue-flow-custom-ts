@@ -120,7 +120,7 @@
           </div>
           <div v-if="apiData.outputVar" class="wf-info-row">
             <span class="wf-info-label">STORE</span>
-            <span class="wf-info-value wf-info-mono">{{ '{{' + apiData.outputVar + '}}' }}</span>
+            <span class="wf-info-value wf-info-mono">{{ storeVariableDisplay }}</span>
           </div>
         </div>
 
@@ -209,7 +209,24 @@
 
       </div><!-- /body -->
 
-      <!-- Action Footer — handles selalu di DOM -->
+      <!-- Phase 3: Execution Output Panel (dipindah ke luar body agar selalu terlihat) -->
+      <div v-if="data.runStatus && data.runStatus !== 'idle'" class="wf-node__exec-output">
+        <div class="exec-header" :class="'exec-header--' + data.runStatus" @click.stop="toggleLogs">
+          <span class="exec-status">
+            <span class="exec-indicator"></span>
+            {{ data.runStatus.toUpperCase() }}
+            <span v-if="data.runDuration != null" class="exec-duration">({{ data.runDuration }}ms)</span>
+          </span>
+          <span class="exec-toggle">{{ showLogs ? '▼' : '▶' }}</span>
+        </div>
+        <div v-if="showLogs" class="exec-logs">
+          <div v-if="data.errorMessage" class="exec-log-error">{{ data.errorMessage }}</div>
+          <div v-for="(log, i) in data.runOutput" :key="i" class="exec-log-line">{{ log }}</div>
+          <div v-if="!data.errorMessage && (!data.runOutput || data.runOutput.length === 0)" class="exec-log-empty">No logs available</div>
+        </div>
+      </div>
+
+      <!-- Action Footer — handles selalu di DOM. Diberi border-top jika panel eksekusi tidak ada -->
       <div class="wf-node__actions">
         <!-- Trigger: hanya output (no input handle) -->
         <template v-if="data.nodeType === 'trigger'">
@@ -296,23 +313,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Handle, Position, useVueFlow } from '@vue-flow/core'
-import type { WorkflowNodeData } from '../../types'
 import type {
+  WorkflowNodeData,
   CommandNodeData,
   FunctionNodeData,
   TriggerNodeData,
   ApiCallNodeData,
   ConditionNodeData,
   NotificationNodeData,
+} from '../../types'
+import type {
   TransformNodeData,
   LoopNodeData,
   SubWorkflowNodeData,
   ApprovalNodeData,
   DelayNodeData,
   VariableNodeData,
-} from '../../types'
+} from '../../types/node-types'
 
 interface Props {
   id: string
@@ -328,6 +347,7 @@ const { updateNodeInternals } = useVueFlow()
 
 const isHovered = ref(false)
 const isExpanded = ref(false)
+const showLogs = ref(false)
 let animFrameId: number | null = null
 let resizeObserver: ResizeObserver | null = null
 const el = ref<HTMLElement | null>(null)
@@ -346,6 +366,8 @@ const approvalData = computed(() => props.data as ApprovalNodeData)
 const delayData = computed(() => props.data as DelayNodeData)
 const variableData = computed(() => props.data as VariableNodeData)
 
+const storeVariableDisplay = computed(() => `{{${apiData.value.outputVar}}}`)
+
 // ─── Condition badge (command / function / decision) ─────────────────────────
 const hasConditionLabel = computed(() => {
   const d = props.data as CommandNodeData | FunctionNodeData
@@ -363,8 +385,28 @@ const conditionBadgeClass = computed(() => {
 // ─── Node classes ─────────────────────────────────────────────────────────────
 const nodeClasses = computed(() => [
   'wf-node--' + props.data.nodeType,
-  { 'wf-node--selected': props.selected, 'wf-node--collapsed': !isExpanded.value }
+  { 
+    'wf-node--selected': props.selected, 
+    'wf-node--collapsed': !isExpanded.value,
+    'wf-node--status-running': props.data.runStatus === 'running',
+    'wf-node--status-success': props.data.runStatus === 'success',
+    'wf-node--status-error': props.data.runStatus === 'error',
+    'wf-node--status-skipped': props.data.runStatus === 'skipped',
+  }
 ])
+
+watch(() => props.data.runStatus, (newStatus, oldStatus) => {
+  // Otomatis buka log dan expand node jika terjadi error
+  if (newStatus === 'error') {
+    isExpanded.value = true;
+    showLogs.value = true;
+  }
+  // Otomatis buka log saat eksekusi selesai (pertama kali)
+  if ((newStatus === 'success' || newStatus === 'error') && oldStatus === 'running') {
+    showLogs.value = true
+  }
+  updateNodeInternals([props.id]);
+})
 
 // ─── Badge label ──────────────────────────────────────────────────────────────
 const NODE_BADGE_LABELS: Record<string, string> = {
@@ -393,31 +435,26 @@ function handleEdit(): void {
 
 function toggleExpand(): void {
   isExpanded.value = !isExpanded.value
-  updateNodeInternals(props.id)
+  // Vue Flow perlu diberitahu untuk menghitung ulang dimensi node
+  updateNodeInternals([props.id]);
+}
 
-  if (animFrameId !== null) cancelAnimationFrame(animFrameId)
-  const start = performance.now()
-  const duration = 400
-  const tick = () => {
-    updateNodeInternals(props.id)
-    if (performance.now() - start < duration) {
-      animFrameId = requestAnimationFrame(tick)
-    } else {
-      updateNodeInternals(props.id)
-    }
-  }
-  animFrameId = requestAnimationFrame(tick)
+function toggleLogs(): void {
+  showLogs.value = !showLogs.value
+  // Vue Flow perlu diberitahu untuk menghitung ulang dimensi node
+  updateNodeInternals([props.id]);
 }
 
 onMounted(() => {
-  resizeObserver = new ResizeObserver(() => { updateNodeInternals(props.id) })
-  const rootEl = document.getElementById(props.id) ?? el.value
-  if (rootEl) resizeObserver.observe(rootEl)
+  const rootEl = document.getElementById(props.id);
+  if (rootEl) {
+    resizeObserver = new ResizeObserver(() => updateNodeInternals([props.id]));
+    resizeObserver.observe(rootEl);
+  }
 })
 
 onBeforeUnmount(() => {
   if (resizeObserver) resizeObserver.disconnect()
-  if (animFrameId !== null) cancelAnimationFrame(animFrameId)
 })
 </script>
 
@@ -496,6 +533,62 @@ onBeforeUnmount(() => {
 .wf-node--variable { border-color: #fcd34d40; }
 .wf-node--variable:hover { border-color: #fcd34d; box-shadow: 0 8px 40px rgba(252,211,77,0.15); }
 
+/* Phase 3: Execution Status Accents */
+.wf-node--status-running {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 2px rgba(56,189,248,0.4), 0 0 15px rgba(56,189,248,0.6) !important;
+  animation: pulse-ring 1.5s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+.wf-node--status-success {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 1px rgba(16,185,129,0.3), 0 4px 20px rgba(16,185,129,0.15) !important;
+}
+.wf-node--status-error {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 2px rgba(239,68,68,0.4), 0 4px 20px rgba(239,68,68,0.2) !important;
+}
+.wf-node--status-skipped {
+  opacity: 0.6;
+  border-style: dashed !important;
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(56,189,248, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(56,189,248, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(56,189,248, 0); }
+}
+
+/* Execution Output Panel */
+.wf-node__exec-output {
+  margin-top: 4px;
+  background: #0d1521;
+  border-top: 1px solid #1e2d3d;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  border-bottom-left-radius: 11px; border-bottom-right-radius: 11px;
+}
+.exec-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 12px; cursor: pointer; user-select: none;
+  font-weight: 700; color: #94a3b8;
+}
+.exec-header:hover { background: #111827; }
+.exec-header--running { color: #38bdf8; }
+.exec-header--success { color: #10b981; }
+.exec-header--error { color: #ef4444; }
+.exec-status { display: flex; align-items: center; gap: 6px; }
+.exec-indicator { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.exec-duration { color: #64748b; font-weight: normal; }
+.exec-toggle { font-size: 8px; color: #4a5568; }
+.exec-logs {
+  padding: 8px 12px; background: #050a12;
+  border-top: 1px dashed #1e2d3d;
+  max-height: 150px; overflow-y: auto;
+}
+.exec-log-line { color: #00e5a0; margin-bottom: 2px; }
+.exec-log-error { color: #ef4444; margin-bottom: 4px; }
+.exec-log-empty { color: #4a5568; font-style: italic; }
+
 /* ─── Header ──────────────────────────────────────────────────────────────── */
 .wf-node__header {
   display: flex; align-items: flex-start; gap: 10px;
@@ -504,7 +597,8 @@ onBeforeUnmount(() => {
 }
 .wf-node__header--clickable { cursor: pointer; user-select: none; align-items: center; }
 .wf-node__header--clickable:hover { background: rgba(0,229,160,0.03); }
-.wf-node--collapsed .wf-node__header { border-bottom-color: transparent; }
+/* Sembunyikan border header jika body diciutkan DAN panel eksekusi tidak ada */
+.wf-node--collapsed:not(:has(.wf-node__exec-output)) .wf-node__header { border-bottom-color: transparent; }
 
 /* ─── Expand button ───────────────────────────────────────────────────────── */
 .wf-expand-btn {
@@ -622,7 +716,11 @@ onBeforeUnmount(() => {
 .wf-expr-op   { font-size: 11px; font-weight: 700; color: #a78bfa; flex-shrink: 0; }
 
 /* ─── Action footer ───────────────────────────────────────────────────────── */
-.wf-node__actions { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; border-top: 1px solid #1e2d3d; gap: 6px; }
+.wf-node__actions { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; gap: 6px; }
+/* Tambah border-top hanya jika panel eksekusi TIDAK ditampilkan */
+.wf-node:not(:has(.wf-node__exec-output)) .wf-node__actions {
+  border-top: 1px solid #1e2d3d;
+}
 .wf-action {
   position: relative; display: inline-flex; align-items: center; gap: 5px;
   font-size: 11px; font-weight: 500; padding: 5px 10px;

@@ -112,7 +112,7 @@ import AppHeader from './AppHeader.vue'
 import StatusBar from './StatusBar.vue'
 import WorkflowChart from '../flow/WorkflowChart.vue'
 import { workflowCatalogs } from '../../data/workflowCatalogs'
-import type { WorkflowCatalog, WorkflowStatus, RiskLevel } from '../../types'
+import type { WorkflowCatalog, WorkflowStatus, RiskLevel, NodeType } from '../../types'
 
 interface Props {
   initialCatalogId?: string | null
@@ -177,25 +177,11 @@ function onSelectCatalog(catalog: WorkflowCatalog): void {
 
 function handleAddNodeDropdown(event: Event): void {
   const target = event.target as HTMLSelectElement
-  const val = target.value
+  const val = target.value as NodeType | ''
   target.value = '' // Reset to placeholder
 
-  if (!workflowChartRef.value) return
-
-  switch (val) {
-    case 'command': workflowChartRef.value.addCommandNode(); break;
-    case 'function': workflowChartRef.value.addFunctionNode(); break;
-    case 'trigger': workflowChartRef.value.addTriggerNode(); break;
-    case 'api-call': workflowChartRef.value.addApiCallNode(); break;
-    case 'condition': workflowChartRef.value.addConditionNode(); break;
-    case 'notification': workflowChartRef.value.addNotificationNode(); break;
-    case 'transform': workflowChartRef.value.addTransformNode(); break;
-    case 'loop': workflowChartRef.value.addLoopNode(); break;
-    case 'sub-workflow': workflowChartRef.value.addSubWorkflowNode(); break;
-    case 'approval': workflowChartRef.value.addApprovalNode(); break;
-    case 'delay': workflowChartRef.value.addDelayNode(); break;
-    case 'variable': workflowChartRef.value.addVariableNode(); break;
-  }
+  if (!val || !workflowChartRef.value) return
+  workflowChartRef.value.addNewNode(val)
 }
 
 function arrangeGraph(): void {

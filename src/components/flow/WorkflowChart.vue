@@ -1,6 +1,9 @@
 <template>
   <div class="wf-container">
-    <VueFlow
+    <VueFlow 
+      @dragover="onDragOver" 
+      @drop="onDrop"
+      @pane-key-down="onPaneKeyDown"
       v-model="elements"
       :node-types="nodeTypes"
       :edge-types="edgeTypes"
@@ -13,7 +16,6 @@
       @node-click="onNodeClick"
       @node-double-click="onNodeDblClick"
       @connect="onConnect"
-      @edge-update="onEdgeUpdate"
       @edge-double-click="onEdgeDblClick"
       fit-view-on-init
       class="wf-flow"
@@ -58,9 +60,17 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, markRaw } from 'vue'
+import { watchDebounced } from '@vueuse/core'
 import { VueFlow, useVueFlow, ConnectionMode } from '@vue-flow/core'
-import type { NodeTypesObject, EdgeTypesObject } from '@vue-flow/core'
-import type { Connection, EdgeUpdateEvent, NodeMouseEvent, EdgeMouseEvent } from '@vue-flow/core'
+import type { 
+  NodeTypesObject, 
+  EdgeTypesObject, 
+  Connection, 
+  NodeMouseEvent, 
+  EdgeMouseEvent,
+  Node,
+  Edge
+} from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { MiniMap } from '@vue-flow/minimap'
@@ -71,7 +81,17 @@ import NodeEditModal from './NodeEditModal.vue'
 import InfoModal from './InfoModal.vue'
 import ToastNotification from './ToastNotification.vue'
 import ConfirmModal from './ConfirmModal.vue'
-import type { WorkflowCatalog, WorkflowNodeData, ConfirmConfig, FlowElement, WorkflowEdgeElement, WorkflowNodeElement, EdgeType } from '../../types'
+import { createNodeData } from '../../utils/node-factory'
+import { useEditorHistory } from '../../composables/useEditorHistory'
+import type {
+  WorkflowCatalog, 
+  WorkflowNodeData, 
+  ConfirmConfig,
+  WorkflowEdgeElement, 
+  WorkflowNodeElement, 
+  EdgeType, 
+  NodeType as LocalNodeType
+} from '../../types'
 
 interface Props {
   catalog?: WorkflowCatalog | null
@@ -87,13 +107,15 @@ const emit = defineEmits<{
   'update:edgeType': [type: string]
 }>()
 
-const { addEdges, addNodes, fitView, updateNodeInternals } = useVueFlow()
+const { fitView, updateNodeInternals } = useVueFlow()
 
-// ─── State ───────────────────────────────────────────────────────────────────
+// --- State ---
 const defaultViewport = { x: 80, y: 60, zoom: 0.85 }
 const nodeTypes = markRaw({ workflow: markRaw(WorkflowNode) }) as NodeTypesObject
 const edgeTypes = markRaw({ workflow: markRaw(WorkflowEdge) }) as EdgeTypesObject
-const elements = ref<FlowElement[]>([])
+
+// Use any type to bypass Vue Flow's strict type checking
+const elements = ref<any[]>([])
 const nodeCounter = ref(0)
 const edgeType = ref<EdgeType>(props.edgeTypeProp as EdgeType || 'success')
 
@@ -102,19 +124,20 @@ const showInfoModal = ref(false)
 const showConfirm = ref(false)
 const confirmConfig = ref<ConfirmConfig>({ title: '', message: '', type: 'warning', confirmText: 'Ya' })
 const confirmCallback = ref<(() => void) | null>(null)
+const { takeSnapshot, undo, redo, canUndo, canRedo, isRestoring } = useEditorHistory()
 const editingNodeId = ref('')
 const editingNodeData = ref<WorkflowNodeData | null>(null)
 const toastRef = ref<InstanceType<typeof ToastNotification> | null>(null)
 
-// ─── Computed ─────────────────────────────────────────────────────────────────
+// --- Computed ---
 const _commandNodes = computed(() =>
-  elements.value.filter(e => (e as WorkflowNodeElement).data?.nodeType === 'command').length
+  elements.value.filter((e: any) => e.data?.nodeType === 'command').length
 )
 const _fnNodes = computed(() =>
-  elements.value.filter(e => (e as WorkflowNodeElement).data?.nodeType === 'function').length
+  elements.value.filter((e: any) => e.data?.nodeType === 'function').length
 )
 
-// ─── Watchers ─────────────────────────────────────────────────────────────────
+// --- Watchers ---
 watch(() => props.catalog, (newCatalog) => {
   loadCatalog(newCatalog ?? null)
 })
@@ -122,12 +145,23 @@ watch(() => props.edgeTypeProp, (val) => {
   edgeType.value = val as EdgeType
 })
 
-// ─── Lifecycle ────────────────────────────────────────────────────────────────
+watchDebounced(
+  elements,
+  (newElements) => {
+    if (!isRestoring.value) {
+      takeSnapshot(newElements)
+    }
+  },
+  {
+    deep: true,
+    debounce: 300,
+  })
+
+// --- Lifecycle ---
 onMounted(() => {
   loadCatalog(props.catalog ?? null)
 })
 
-// ─── Methods ─────────────────────────────────────────────────────────────────
 function toast(msg: string, type: 'success' | 'error' | 'info' | 'warning' = 'success'): void {
   toastRef.value?.show(msg, type)
 }
@@ -147,28 +181,24 @@ function layoutGraph(): void {
   g.setGraph({ rankdir: 'TB', ranksep: 80, nodesep: 60 })
   g.setDefaultEdgeLabel(() => ({}))
 
-  elements.value.forEach(el => {
-    const node = el as WorkflowNodeElement
-    const edge = el as WorkflowEdgeElement
-    if (!edge.source && !edge.target) {
+  elements.value.forEach((el: any) => {
+    if (!el.source && !el.target) {
       const width = 300
-      const height = node.data?.nodeType === 'function' ? 120 : 250
+      const height = el.data?.nodeType === 'function' ? 120 : 250
       g.setNode(el.id, { width, height })
     }
   })
 
-  elements.value.forEach(el => {
-    const edge = el as WorkflowEdgeElement
-    if (edge.source && edge.target) {
-      g.setEdge(edge.source, edge.target)
+  elements.value.forEach((el: any) => {
+    if (el.source && el.target) {
+      g.setEdge(el.source, el.target)
     }
   })
 
   dagre.layout(g)
 
-  elements.value = elements.value.map(el => {
-    const edge = el as WorkflowEdgeElement
-    if (!edge.source && !edge.target) {
+  elements.value = elements.value.map((el: any) => {
+    if (!el.source && !el.target) {
       const nodeWithPos = g.node(el.id)
       return {
         ...el,
@@ -186,7 +216,7 @@ function layoutGraph(): void {
   }, 50)
 }
 
-function makeEdge(id: string, source: string, target: string, type: EdgeType = 'success'): WorkflowEdgeElement {
+function makeEdge(id: string, source: string, target: string, type: EdgeType = 'success'): any {
   return {
     id,
     type: 'workflow',
@@ -205,11 +235,14 @@ function loadCatalog(catalog: WorkflowCatalog | null): void {
     return
   }
   const editFn = (nodeId: string) => openEditByNodeId(nodeId)
-  const nodes: WorkflowNodeElement[] = (catalog.nodes || []).map(n => ({
-    ...n,
-    data: { ...n.data, onEdit: editFn }
-  }))
-  const edges: WorkflowEdgeElement[] = (catalog.edges || []).map(e => ({
+  const nodes: any[] = (catalog.nodes || []).map(n => {
+    const nodeData = { ...n.data, onEdit: editFn } as WorkflowNodeData
+    return {
+      ...n,
+      data: nodeData
+    }
+  })
+  const edges: any[] = (catalog.edges || []).map(e => ({
     ...e,
     updatable: true
   }))
@@ -225,16 +258,20 @@ function initWorkflow(): void {
     if (saved) {
       const parsed = JSON.parse(saved)
       if (parsed && Array.isArray(parsed.elements) && parsed.elements.length > 0) {
-        parsed.elements.forEach((el: FlowElement) => {
-          const node = el as WorkflowNodeElement
-          if (node.data?.nodeType) {
-            node.data.onEdit = editFn
+        const restoredElements: any[] = parsed.elements.map((el: any) => {
+          if (el.data && el.data.nodeType) {
+            return {
+              ...el,
+              data: { ...el.data, onEdit: editFn }
+            }
           }
+          return el
         })
-        elements.value = parsed.elements
+        elements.value = restoredElements
         nodeCounter.value = parsed.nodeCounter || 10
         setTimeout(() => {
           fitView({ padding: 0.2, duration: 500 })
+          takeSnapshot(elements.value)
           toast('Workspace restored from local storage', 'info')
         }, 50)
         return
@@ -245,224 +282,69 @@ function initWorkflow(): void {
   }
   elements.value = []
   nodeCounter.value = 0
+  takeSnapshot([])
 }
 
-function addCommandNode(): void {
+function addNewNode(type: LocalNodeType, position?: { x: number; y: number }): void {
   const id = String(++nodeCounter.value)
-  elements.value.push({
-    id, type: 'workflow',
-    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
-    data: {
-      nodeType: 'command',
-      label: `${id}. New Command Node`,
-      subtitle: '1 command(s)',
-      onEdit: (nid: string) => openEditByNodeId(nid),
-      commands: [{ text: 'echo "Hello World"' }]
-    }
-  })
+  const onEdit = (nid: string) => openEditByNodeId(nid)
+
+  const newNode: any = {
+    id,
+    type: 'workflow',
+    position: position || { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
+    data: createNodeData(type, onEdit)
+  }
+
+  elements.value.push(newNode)
 }
 
-function addFunctionNode(): void {
-  const id = String(++nodeCounter.value)
-  elements.value.push({
-    id, type: 'workflow',
-    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
-    data: {
-      nodeType: 'function',
-      label: `${id}. New Function`,
-      subtitle: 'myFunction',
-      params: 'myFunction',
-      bound: '1 BOUND',
-      onEdit: (nid: string) => openEditByNodeId(nid)
-    }
-  })
+function onDragOver(event: DragEvent) {
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
 }
 
-function addTriggerNode(): void {
-  const id = String(++nodeCounter.value)
-  elements.value.push({
-    id, type: 'workflow',
-    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
-    data: {
-      nodeType: 'trigger',
-      label: `${id}. New Trigger`,
-      subtitle: 'Webhook',
-      triggerType: 'webhook',
-      endpoint: '/api/webhook',
-      onEdit: (nid: string) => openEditByNodeId(nid)
-    }
-  })
-}
+function onDrop(event: DragEvent) {
+  event.preventDefault()
+  const type = event.dataTransfer?.getData('application/vueflow') as LocalNodeType | undefined
+  if (!type) return
 
-function addApiCallNode(): void {
-  const id = String(++nodeCounter.value)
-  elements.value.push({
-    id, type: 'workflow',
-    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
-    data: {
-      nodeType: 'api-call',
-      label: `${id}. New API Call`,
-      subtitle: 'Fetch Data',
-      method: 'GET',
-      url: 'https://api.example.com/data',
-      onEdit: (nid: string) => openEditByNodeId(nid)
-    }
-  })
-}
-
-function addConditionNode(): void {
-  const id = String(++nodeCounter.value)
-  elements.value.push({
-    id, type: 'workflow',
-    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
-    data: {
-      nodeType: 'condition',
-      label: `${id}. New Condition`,
-      subtitle: 'Check Status',
-      leftOperand: '{{status}}',
-      operator: '==',
-      rightOperand: '200',
-      onEdit: (nid: string) => openEditByNodeId(nid)
-    }
-  })
-}
-
-function addNotificationNode(): void {
-  const id = String(++nodeCounter.value)
-  elements.value.push({
-    id, type: 'workflow',
-    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
-    data: {
-      nodeType: 'notification',
-      label: `${id}. New Notification`,
-      subtitle: 'Send Slack',
-      channel: 'slack',
-      recipients: '#general',
-      template: 'Workflow completed successfully.',
-      onEdit: (nid: string) => openEditByNodeId(nid)
-    }
-  })
-}
-
-function addTransformNode(): void {
-  const id = String(++nodeCounter.value)
-  elements.value.push({
-    id, type: 'workflow',
-    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
-    data: {
-      nodeType: 'transform',
-      label: `${id}. Transform Data`,
-      subtitle: 'JavaScript',
-      script: 'return data;',
-      onEdit: (nid: string) => openEditByNodeId(nid)
-    }
-  })
-}
-
-function addLoopNode(): void {
-  const id = String(++nodeCounter.value)
-  elements.value.push({
-    id, type: 'workflow',
-    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
-    data: {
-      nodeType: 'loop',
-      label: `${id}. Loop Items`,
-      subtitle: 'Iterate array',
-      arrayVar: 'items',
-      maxIterations: 100,
-      onEdit: (nid: string) => openEditByNodeId(nid)
-    }
-  })
-}
-
-function addSubWorkflowNode(): void {
-  const id = String(++nodeCounter.value)
-  elements.value.push({
-    id, type: 'workflow',
-    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
-    data: {
-      nodeType: 'sub-workflow',
-      label: `${id}. Call Workflow`,
-      subtitle: 'Sub-process',
-      workflowId: 'wf-xyz-123',
-      onEdit: (nid: string) => openEditByNodeId(nid)
-    }
-  })
-}
-
-function addApprovalNode(): void {
-  const id = String(++nodeCounter.value)
-  elements.value.push({
-    id, type: 'workflow',
-    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
-    data: {
-      nodeType: 'approval',
-      label: `${id}. Approval`,
-      subtitle: 'Manual gate',
-      approvers: 'admin',
-      timeoutHours: 24,
-      onEdit: (nid: string) => openEditByNodeId(nid)
-    }
-  })
-}
-
-function addDelayNode(): void {
-  const id = String(++nodeCounter.value)
-  elements.value.push({
-    id, type: 'workflow',
-    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
-    data: {
-      nodeType: 'delay',
-      label: `${id}. Wait`,
-      subtitle: 'Pause execution',
-      duration: 1,
-      unit: 'minutes',
-      onEdit: (nid: string) => openEditByNodeId(nid)
-    }
-  })
-}
-
-function addVariableNode(): void {
-  const id = String(++nodeCounter.value)
-  elements.value.push({
-    id, type: 'workflow',
-    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
-    data: {
-      nodeType: 'variable',
-      label: `${id}. Set Variable`,
-      subtitle: 'Assign value',
-      varName: 'myVar',
-      varValue: '123',
-      scope: 'local',
-      onEdit: (nid: string) => openEditByNodeId(nid)
-    }
-  })
+  const { project } = useVueFlow()
+  const position = project({ x: event.clientX, y: event.clientY })
+  addNewNode(type, position)
 }
 
 function onNodeClick({ node, event }: NodeMouseEvent): void {
   const target = event?.target as HTMLElement | null
   if (target?.closest('[data-expand-toggle]')) {
-    const idx = elements.value.findIndex(e => e.id === node.id)
+    const idx = elements.value.findIndex((e: any) => e.id === node.id)
     if (idx !== -1) {
-      const el = elements.value[idx] as WorkflowNodeElement
-      elements.value[idx] = {
+      const el = elements.value[idx]
+      const updatedElement = {
         ...el,
         data: { ...el.data, expanded: !el.data?.expanded }
       }
+      elements.value.splice(idx, 1, updatedElement)
+      requestAnimationFrame(() => {
+        updateNodeInternals([node.id])
+        setTimeout(() => updateNodeInternals([node.id]), 350)
+      })
     }
   }
 }
 
 function onNodeDblClick({ node }: NodeMouseEvent): void {
-  openEditModal(node as unknown as WorkflowNodeElement)
+  openEditModal(node as any)
 }
 
 function openEditByNodeId(nodeId: string): void {
-  const el = elements.value.find(e => e.id === nodeId) as WorkflowNodeElement | undefined
+  const el = elements.value.find((e: any) => e.id === nodeId)
   if (el) openEditModal(el)
 }
 
-function openEditModal(node: WorkflowNodeElement): void {
+function openEditModal(node: any): void {
   editingNodeId.value = node.id
   editingNodeData.value = { ...node.data }
   showEditModal.value = true
@@ -471,23 +353,21 @@ function openEditModal(node: WorkflowNodeElement): void {
 function onConnect(connection: Connection): void {
   if (connection.source && connection.target) {
     const id = `e${connection.source}-${connection.target}-${Date.now()}`
-    elements.value.push(makeEdge(id, connection.source, connection.target, edgeType.value))
+    const newEdge = makeEdge(id, connection.source, connection.target, edgeType.value)
+    elements.value.push(newEdge)
   }
 }
 
-function onEdgeUpdate({ edge, connection }: EdgeUpdateEvent): void {
-  elements.value = elements.value.map(el => {
-    if (el.id === edge.id) {
-      return {
-        ...el,
-        source: connection.source ?? el.id,
-        target: connection.target ?? (el as WorkflowEdgeElement).target,
-        sourceHandle: connection.sourceHandle ?? undefined,
-        targetHandle: connection.targetHandle ?? undefined
-      }
+function onPaneKeyDown(event: KeyboardEvent): void {
+  if (event.ctrlKey) {
+    if (event.key === 'z') {
+      event.preventDefault()
+      handleUndo()
+    } else if (event.key === 'y') {
+      event.preventDefault()
+      handleRedo()
     }
-    return el
-  })
+  }
 }
 
 function onEdgeDblClick({ edge }: EdgeMouseEvent): void {
@@ -497,25 +377,41 @@ function onEdgeDblClick({ edge }: EdgeMouseEvent): void {
     type: 'danger',
     confirmText: 'Hapus'
   }, () => {
-    elements.value = elements.value.filter(el => el.id !== edge.id)
+    elements.value = elements.value.filter((el: any) => el.id !== edge.id)
   })
 }
 
 function onSaveNode({ nodeId, data }: { nodeId: string; data: Partial<WorkflowNodeData> }): void {
-  const idx = elements.value.findIndex(el => el.id === nodeId)
+  const idx = elements.value.findIndex((el: any) => el.id === nodeId)
   if (idx !== -1) {
-    const el = elements.value[idx] as WorkflowNodeElement
-    elements.value[idx] = { ...el, data: { ...el.data, ...data } }
-    elements.value = [...elements.value]
+    const existingElement = elements.value[idx]
+    const updatedElement = {
+      ...existingElement,
+      data: { ...existingElement.data, ...data }
+    }
+    elements.value.splice(idx, 1, updatedElement)
   }
 }
 
 function onDeleteNode(nodeId: string): void {
-  elements.value = elements.value.filter(el => {
+  elements.value = elements.value.filter((el: any) => {
     if (el.id === nodeId) return false
-    const edge = el as WorkflowEdgeElement
-    if (edge.source === nodeId || edge.target === nodeId) return false
+    if (el.source === nodeId || el.target === nodeId) return false
     return true
+  })
+}
+
+function handleUndo(): void {
+  undo((restoredState) => {
+    elements.value = restoredState
+    toast('Undo', 'info')
+  })
+}
+
+function handleRedo(): void {
+  redo((restoredState) => {
+    elements.value = restoredState
+    toast('Redo', 'info')
   })
 }
 
@@ -588,21 +484,14 @@ function getMinimapNodeStrokeColor(node: any): string {
 
 // Expose methods for parent ref usage
 defineExpose({
-  addCommandNode,
-  addFunctionNode,
-  addTriggerNode,
-  addApiCallNode,
-  addConditionNode,
-  addNotificationNode,
-  addTransformNode,
-  addLoopNode,
-  addSubWorkflowNode,
-  addApprovalNode,
-  addDelayNode,
-  addVariableNode,
   autoArrange,
   resetFlow,
-  saveWorkspace
+  saveWorkspace,
+  addNewNode,
+  handleUndo,
+  handleRedo,
+  canUndo,
+  canRedo,
 })
 </script>
 

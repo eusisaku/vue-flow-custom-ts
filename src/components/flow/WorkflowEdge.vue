@@ -68,6 +68,12 @@ const color = computed<string>(() =>
 )
 
 const edgePath = computed<string>(() => {
+  // Guard against NaN coords during initial render before VueFlow sets positions
+  if (
+    !isFinite(props.sourceX) || !isFinite(props.sourceY) ||
+    !isFinite(props.targetX) || !isFinite(props.targetY)
+  ) return ''
+
   const [path] = getBezierPath({
     sourceX: props.sourceX,
     sourceY: props.sourceY,
@@ -79,8 +85,16 @@ const edgePath = computed<string>(() => {
   return path
 })
 
-const labelX = computed<number>(() => (props.sourceX + props.targetX) / 2)
-const labelY = computed<number>(() => (props.sourceY + props.targetY) / 2)
+const labelX = computed<number>(() =>
+  isFinite(props.sourceX) && isFinite(props.targetX)
+    ? (props.sourceX + props.targetX) / 2
+    : 0
+)
+const labelY = computed<number>(() =>
+  isFinite(props.sourceY) && isFinite(props.targetY)
+    ? (props.sourceY + props.targetY) / 2
+    : 0
+)
 
 const edgeStyle = computed<Record<string, string>>(() => ({
   stroke: color.value,

@@ -191,6 +191,15 @@ export interface NodeEditForm {
   scope: 'local' | 'global'
 }
 
+// ─── Palette ──────────────────────────────────────────────────────────────────
+
+export interface PaletteNode {
+  type: NodeType
+  label: string
+  category?: string
+  icon?: string
+}
+
 // ─── App Navigation ───────────────────────────────────────────────────────────
 
 export type AppView = 'catalog' | 'editor'
