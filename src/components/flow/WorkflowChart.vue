@@ -344,6 +344,101 @@ function addNotificationNode(): void {
   })
 }
 
+function addTransformNode(): void {
+  const id = String(++nodeCounter.value)
+  elements.value.push({
+    id, type: 'workflow',
+    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
+    data: {
+      nodeType: 'transform',
+      label: `${id}. Transform Data`,
+      subtitle: 'JavaScript',
+      script: 'return data;',
+      onEdit: (nid: string) => openEditByNodeId(nid)
+    }
+  })
+}
+
+function addLoopNode(): void {
+  const id = String(++nodeCounter.value)
+  elements.value.push({
+    id, type: 'workflow',
+    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
+    data: {
+      nodeType: 'loop',
+      label: `${id}. Loop Items`,
+      subtitle: 'Iterate array',
+      arrayVar: 'items',
+      maxIterations: 100,
+      onEdit: (nid: string) => openEditByNodeId(nid)
+    }
+  })
+}
+
+function addSubWorkflowNode(): void {
+  const id = String(++nodeCounter.value)
+  elements.value.push({
+    id, type: 'workflow',
+    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
+    data: {
+      nodeType: 'sub-workflow',
+      label: `${id}. Call Workflow`,
+      subtitle: 'Sub-process',
+      workflowId: 'wf-xyz-123',
+      onEdit: (nid: string) => openEditByNodeId(nid)
+    }
+  })
+}
+
+function addApprovalNode(): void {
+  const id = String(++nodeCounter.value)
+  elements.value.push({
+    id, type: 'workflow',
+    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
+    data: {
+      nodeType: 'approval',
+      label: `${id}. Approval`,
+      subtitle: 'Manual gate',
+      approvers: 'admin',
+      timeoutHours: 24,
+      onEdit: (nid: string) => openEditByNodeId(nid)
+    }
+  })
+}
+
+function addDelayNode(): void {
+  const id = String(++nodeCounter.value)
+  elements.value.push({
+    id, type: 'workflow',
+    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
+    data: {
+      nodeType: 'delay',
+      label: `${id}. Wait`,
+      subtitle: 'Pause execution',
+      duration: 1,
+      unit: 'minutes',
+      onEdit: (nid: string) => openEditByNodeId(nid)
+    }
+  })
+}
+
+function addVariableNode(): void {
+  const id = String(++nodeCounter.value)
+  elements.value.push({
+    id, type: 'workflow',
+    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
+    data: {
+      nodeType: 'variable',
+      label: `${id}. Set Variable`,
+      subtitle: 'Assign value',
+      varName: 'myVar',
+      varValue: '123',
+      scope: 'local',
+      onEdit: (nid: string) => openEditByNodeId(nid)
+    }
+  })
+}
+
 function onNodeClick({ node, event }: NodeMouseEvent): void {
   const target = event?.target as HTMLElement | null
   if (target?.closest('[data-expand-toggle]')) {
@@ -462,6 +557,12 @@ function getMinimapNodeColor(node: any): string {
     case 'api-call': return '#0a1f40'
     case 'condition': return '#1a1040'
     case 'notification': return '#2a0a28'
+    case 'transform': return '#3a1a2a'
+    case 'loop': return '#0a3a2a'
+    case 'sub-workflow': return '#2a1a4a'
+    case 'approval': return '#3a2a0a'
+    case 'delay': return '#0a2a4a'
+    case 'variable': return '#3a3a0a'
     default: return '#182030'
   }
 }
@@ -475,6 +576,12 @@ function getMinimapNodeStrokeColor(node: any): string {
     case 'api-call': return '#38bdf8'
     case 'condition': return '#a78bfa'
     case 'notification': return '#f472b6'
+    case 'transform': return '#fca5a5'
+    case 'loop': return '#6ee7b7'
+    case 'sub-workflow': return '#c4b5fd'
+    case 'approval': return '#fdba74'
+    case 'delay': return '#93c5fd'
+    case 'variable': return '#fcd34d'
     default: return '#00e5a0'
   }
 }
@@ -487,6 +594,12 @@ defineExpose({
   addApiCallNode,
   addConditionNode,
   addNotificationNode,
+  addTransformNode,
+  addLoopNode,
+  addSubWorkflowNode,
+  addApprovalNode,
+  addDelayNode,
+  addVariableNode,
   autoArrange,
   resetFlow,
   saveWorkspace

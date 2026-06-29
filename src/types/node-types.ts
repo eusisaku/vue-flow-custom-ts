@@ -105,6 +105,53 @@ export interface NotificationNodeData extends BaseNodeData {
   webhookUrl?: string      // jika channel === 'webhook'
 }
 
+// ─── Transform Node (Phase 2) ────────────────────────────────────────────────
+
+export interface TransformNodeData extends BaseNodeData {
+  nodeType: 'transform'
+  script?: string           // Script to transform payload (e.g. JS or JSONata)
+}
+
+// ─── Loop Node (Phase 2) ─────────────────────────────────────────────────────
+
+export interface LoopNodeData extends BaseNodeData {
+  nodeType: 'loop'
+  arrayVar: string          // Which variable to iterate over (e.g. users)
+  maxIterations?: number    // Infinite loop guard
+}
+
+// ─── Sub-Workflow Node (Phase 2) ──────────────────────────────────────────────
+
+export interface SubWorkflowNodeData extends BaseNodeData {
+  nodeType: 'sub-workflow'
+  workflowId: string        // ID of the target workflow to run
+}
+
+// ─── Approval Node (Phase 2) ─────────────────────────────────────────────────
+
+export interface ApprovalNodeData extends BaseNodeData {
+  nodeType: 'approval'
+  approvers: string         // Comma-separated users or roles
+  timeoutHours?: number     // Optional timeout in hours
+}
+
+// ─── Delay Node (Phase 2) ────────────────────────────────────────────────────
+
+export interface DelayNodeData extends BaseNodeData {
+  nodeType: 'delay'
+  duration: number
+  unit: 'seconds' | 'minutes' | 'hours' | 'days'
+}
+
+// ─── Variable Node (Phase 2) ─────────────────────────────────────────────────
+
+export interface VariableNodeData extends BaseNodeData {
+  nodeType: 'variable'
+  varName: string
+  varValue: string
+  scope: 'local' | 'global' // local to workflow or global cross-workflow
+}
+
 // ─── Union Type ───────────────────────────────────────────────────────────────
 
 export type NodeType =
@@ -115,6 +162,12 @@ export type NodeType =
   | 'api-call'
   | 'condition'
   | 'notification'
+  | 'transform'
+  | 'loop'
+  | 'sub-workflow'
+  | 'approval'
+  | 'delay'
+  | 'variable'
 
 export type WorkflowNodeData =
   | CommandNodeData
@@ -124,6 +177,12 @@ export type WorkflowNodeData =
   | ApiCallNodeData
   | ConditionNodeData
   | NotificationNodeData
+  | TransformNodeData
+  | LoopNodeData
+  | SubWorkflowNodeData
+  | ApprovalNodeData
+  | DelayNodeData
+  | VariableNodeData
 
 // ─── Edge Types ───────────────────────────────────────────────────────────────
 
@@ -159,4 +218,27 @@ export function isCommandNode(data: WorkflowNodeData): data is CommandNodeData {
 
 export function isFunctionNode(data: WorkflowNodeData): data is FunctionNodeData {
   return data.nodeType === 'function'
+}
+export function isTransformNode(data: WorkflowNodeData): data is TransformNodeData {
+  return data.nodeType === 'transform'
+}
+
+export function isLoopNode(data: WorkflowNodeData): data is LoopNodeData {
+  return data.nodeType === 'loop'
+}
+
+export function isSubWorkflowNode(data: WorkflowNodeData): data is SubWorkflowNodeData {
+  return data.nodeType === 'sub-workflow'
+}
+
+export function isApprovalNode(data: WorkflowNodeData): data is ApprovalNodeData {
+  return data.nodeType === 'approval'
+}
+
+export function isDelayNode(data: WorkflowNodeData): data is DelayNodeData {
+  return data.nodeType === 'delay'
+}
+
+export function isVariableNode(data: WorkflowNodeData): data is VariableNodeData {
+  return data.nodeType === 'variable'
 }

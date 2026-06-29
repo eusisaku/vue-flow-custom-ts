@@ -15,6 +15,12 @@
                 <template v-else-if="form.nodeType === 'api-call'"><span class="mi-icon">⇄</span></template>
                 <template v-else-if="form.nodeType === 'condition'"><span class="mi-icon">?</span></template>
                 <template v-else-if="form.nodeType === 'notification'"><span class="mi-icon">🔔</span></template>
+                <template v-else-if="form.nodeType === 'transform'"><span class="mi-icon">{ }</span></template>
+                <template v-else-if="form.nodeType === 'loop'"><span class="mi-icon">↻</span></template>
+                <template v-else-if="form.nodeType === 'sub-workflow'"><span class="mi-icon">⎘</span></template>
+                <template v-else-if="form.nodeType === 'approval'"><span class="mi-icon">✓</span></template>
+                <template v-else-if="form.nodeType === 'delay'"><span class="mi-icon">⏱</span></template>
+                <template v-else-if="form.nodeType === 'variable'"><span class="mi-icon">𝑥</span></template>
               </div>
               <div>
                 <div class="modal-title">Edit Node</div>
@@ -40,6 +46,12 @@
                   <option value="api-call">API Call</option>
                   <option value="condition">Condition</option>
                   <option value="notification">Notification</option>
+                  <option value="transform">Transform</option>
+                  <option value="loop">Loop</option>
+                  <option value="sub-workflow">Sub-Workflow</option>
+                  <option value="approval">Approval</option>
+                  <option value="delay">Delay</option>
+                  <option value="variable">Variable</option>
                 </select>
               </div>
             </div>
@@ -205,6 +217,80 @@
               </div>
             </template>
 
+            <!-- Transform Settings -->
+            <template v-if="form.nodeType === 'transform'">
+              <div class="form-group">
+                <label class="form-label">Transformation Script (JS/JSONata)</label>
+                <textarea v-model="form.script" class="form-input cmd-input" rows="5" placeholder="return data.filter(x => x.active);"></textarea>
+              </div>
+            </template>
+
+            <!-- Loop Settings -->
+            <template v-if="form.nodeType === 'loop'">
+              <div class="form-group">
+                <label class="form-label">Array Variable</label>
+                <input v-model="form.arrayVar" class="form-input cmd-input" placeholder="e.g. users" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Max Iterations (Safety Guard)</label>
+                <input v-model.number="form.maxIterations" type="number" class="form-input cmd-input" placeholder="100" />
+              </div>
+            </template>
+
+            <!-- Sub-Workflow Settings -->
+            <template v-if="form.nodeType === 'sub-workflow'">
+              <div class="form-group">
+                <label class="form-label">Target Workflow ID</label>
+                <input v-model="form.workflowId" class="form-input cmd-input" placeholder="wf-xyz-123" />
+              </div>
+            </template>
+
+            <!-- Approval Settings -->
+            <template v-if="form.nodeType === 'approval'">
+              <div class="form-group">
+                <label class="form-label">Approvers (Comma separated)</label>
+                <input v-model="form.approvers" class="form-input cmd-input" placeholder="admin, manager" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Timeout (Hours)</label>
+                <input v-model.number="form.timeoutHours" type="number" class="form-input cmd-input" placeholder="48" />
+              </div>
+            </template>
+
+            <!-- Delay Settings -->
+            <template v-if="form.nodeType === 'delay'">
+              <div class="form-group">
+                <label class="form-label">Wait Duration</label>
+                <div class="form-row">
+                  <input v-model.number="form.duration" type="number" class="form-input form-input--flex cmd-input" placeholder="10" />
+                  <select v-model="form.unit" class="form-select form-select--sm">
+                    <option value="seconds">Seconds</option>
+                    <option value="minutes">Minutes</option>
+                    <option value="hours">Hours</option>
+                    <option value="days">Days</option>
+                  </select>
+                </div>
+              </div>
+            </template>
+
+            <!-- Variable Settings -->
+            <template v-if="form.nodeType === 'variable'">
+              <div class="form-group">
+                <label class="form-label">Variable Details</label>
+                <div class="form-row">
+                  <input v-model="form.varName" class="form-input form-input--flex cmd-input" placeholder="Variable Name" />
+                  <select v-model="form.scope" class="form-select form-select--sm">
+                    <option value="local">Local</option>
+                    <option value="global">Global</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Value</label>
+                <textarea v-model="form.varValue" class="form-input cmd-input" rows="2" placeholder="Value expression"></textarea>
+              </div>
+            </template>
+
           </div>
 
           <!-- Footer -->
@@ -288,7 +374,18 @@ const form = ref<NodeEditForm>({
   channel: 'slack',
   recipients: '',
   template: '',
-  webhookUrl: ''
+  webhookUrl: '',
+  script: '',
+  arrayVar: '',
+  maxIterations: 100,
+  workflowId: '',
+  approvers: '',
+  timeoutHours: 24,
+  duration: 1,
+  unit: 'minutes',
+  varName: '',
+  varValue: '',
+  scope: 'local'
 })
 
 function loadForm(): void {
@@ -329,7 +426,20 @@ function loadForm(): void {
     channel: d?.channel ?? 'slack',
     recipients: d?.recipients ?? '',
     template: d?.template ?? '',
-    webhookUrl: d?.webhookUrl ?? ''
+    webhookUrl: d?.webhookUrl ?? '',
+
+    // Phase 2
+    script: d?.script ?? '',
+    arrayVar: d?.arrayVar ?? '',
+    maxIterations: d?.maxIterations ?? 100,
+    workflowId: d?.workflowId ?? '',
+    approvers: d?.approvers ?? '',
+    timeoutHours: d?.timeoutHours ?? 24,
+    duration: d?.duration ?? 1,
+    unit: d?.unit ?? 'minutes',
+    varName: d?.varName ?? '',
+    varValue: d?.varValue ?? '',
+    scope: d?.scope ?? 'local'
   }
 }
 
@@ -391,6 +501,23 @@ function saveNode(): void {
     payload.recipients = form.value.recipients
     payload.template = form.value.template
     payload.webhookUrl = form.value.webhookUrl
+  } else if (form.value.nodeType === 'transform') {
+    payload.script = form.value.script
+  } else if (form.value.nodeType === 'loop') {
+    payload.arrayVar = form.value.arrayVar
+    payload.maxIterations = form.value.maxIterations
+  } else if (form.value.nodeType === 'sub-workflow') {
+    payload.workflowId = form.value.workflowId
+  } else if (form.value.nodeType === 'approval') {
+    payload.approvers = form.value.approvers
+    payload.timeoutHours = form.value.timeoutHours
+  } else if (form.value.nodeType === 'delay') {
+    payload.duration = form.value.duration
+    payload.unit = form.value.unit
+  } else if (form.value.nodeType === 'variable') {
+    payload.varName = form.value.varName
+    payload.varValue = form.value.varValue
+    payload.scope = form.value.scope
   }
 
   emit('save', { nodeId: props.nodeId ?? '', data: payload as Partial<WorkflowNodeData> })
@@ -435,6 +562,12 @@ function executeDelete(): void {
 .modal-icon--api-call { background: #0a1f40; color: #38bdf8; font-size: 20px; }
 .modal-icon--condition { background: #1a1040; color: #a78bfa; font-size: 20px; font-weight: 900; }
 .modal-icon--notification { background: #2a0a28; color: #f472b6; font-size: 20px; }
+.modal-icon--transform { background: #3a1a2a; color: #fca5a5; font-size: 18px; font-family: var(--font-mono); }
+.modal-icon--loop { background: #0a3a2a; color: #6ee7b7; font-size: 20px; }
+.modal-icon--sub-workflow { background: #2a1a4a; color: #c4b5fd; font-size: 20px; }
+.modal-icon--approval { background: #3a2a0a; color: #fdba74; font-size: 18px; }
+.modal-icon--delay { background: #0a2a4a; color: #93c5fd; font-size: 18px; }
+.modal-icon--variable { background: #3a3a0a; color: #fcd34d; font-size: 20px; font-style: italic; }
 
 .mi-icon { font-size: 20px; font-weight: 700; }
 .modal-title { font-size: 15px; font-weight: 700; color: #e2e8f0; }

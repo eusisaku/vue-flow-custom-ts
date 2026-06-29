@@ -18,30 +18,32 @@
             New Workflow
           </button>
           <div class="divider-v"></div>
-          <button class="btn-action btn-cmd" @click="addCommand">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            Cmd Node
-          </button>
-          <button class="btn-action btn-func" @click="addFunction">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            Func Node
-          </button>
-          
-          <div class="divider-v"></div>
 
-          <!-- New Node Types -->
-          <button class="btn-action btn-trigger" @click="addTrigger">
-            <span>⚡</span> Trigger
-          </button>
-          <button class="btn-action btn-api" @click="addApiCall">
-            <span>⇄</span> API
-          </button>
-          <button class="btn-action btn-condition" @click="addCondition">
-            <span>?</span> Cond
-          </button>
-          <button class="btn-action btn-notif" @click="addNotification">
-            <span>🔔</span> Notif
-          </button>
+          <!-- Add Node Dropdown -->
+          <div class="node-dropdown-wrapper">
+            <select class="btn-action node-dropdown" @change="handleAddNodeDropdown">
+              <option value="" disabled selected>+ Add Node...</option>
+              <optgroup label="System (Phase 0)">
+                <option value="command">Terminal Command</option>
+                <option value="function">Function</option>
+              </optgroup>
+              <optgroup label="Integration (Phase 1)">
+                <option value="trigger">Trigger</option>
+                <option value="api-call">API Call</option>
+                <option value="condition">Condition</option>
+                <option value="notification">Notification</option>
+              </optgroup>
+              <optgroup label="Advanced (Phase 2)">
+                <option value="transform">Transform</option>
+                <option value="loop">Loop</option>
+                <option value="sub-workflow">Sub-Workflow</option>
+                <option value="approval">Approval</option>
+                <option value="delay">Delay</option>
+                <option value="variable">Variable</option>
+              </optgroup>
+            </select>
+          </div>
+
           <div class="divider-v"></div>
           <button class="btn-action" @click="cycleStatus">
             <span class="status-indicator" :class="'status--' + workflowStatus.toLowerCase()"></span>
@@ -173,28 +175,27 @@ function onSelectCatalog(catalog: WorkflowCatalog): void {
   activeCatalogId.value = catalog.id
 }
 
-function addCommand(): void {
-  workflowChartRef.value?.addCommandNode()
-}
+function handleAddNodeDropdown(event: Event): void {
+  const target = event.target as HTMLSelectElement
+  const val = target.value
+  target.value = '' // Reset to placeholder
 
-function addFunction(): void {
-  workflowChartRef.value?.addFunctionNode()
-}
+  if (!workflowChartRef.value) return
 
-function addTrigger(): void {
-  workflowChartRef.value?.addTriggerNode()
-}
-
-function addApiCall(): void {
-  workflowChartRef.value?.addApiCallNode()
-}
-
-function addCondition(): void {
-  workflowChartRef.value?.addConditionNode()
-}
-
-function addNotification(): void {
-  workflowChartRef.value?.addNotificationNode()
+  switch (val) {
+    case 'command': workflowChartRef.value.addCommandNode(); break;
+    case 'function': workflowChartRef.value.addFunctionNode(); break;
+    case 'trigger': workflowChartRef.value.addTriggerNode(); break;
+    case 'api-call': workflowChartRef.value.addApiCallNode(); break;
+    case 'condition': workflowChartRef.value.addConditionNode(); break;
+    case 'notification': workflowChartRef.value.addNotificationNode(); break;
+    case 'transform': workflowChartRef.value.addTransformNode(); break;
+    case 'loop': workflowChartRef.value.addLoopNode(); break;
+    case 'sub-workflow': workflowChartRef.value.addSubWorkflowNode(); break;
+    case 'approval': workflowChartRef.value.addApprovalNode(); break;
+    case 'delay': workflowChartRef.value.addDelayNode(); break;
+    case 'variable': workflowChartRef.value.addVariableNode(); break;
+  }
 }
 
 function arrangeGraph(): void {
@@ -304,6 +305,27 @@ function confirmSaveWorkflow(): void {
 .risk--medium { color: #eab308; }
 .risk--high { color: #f97316; }
 .risk--critical { color: #ef4444; }
+
+.node-dropdown {
+  appearance: none;
+  background-color: #06b6d415;
+  color: #00e5a0;
+  border-color: #00e5a040;
+  padding-right: 24px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='%2300e5a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 12px;
+}
+.node-dropdown:hover {
+  background-color: #06b6d430;
+  border-color: #00e5a0;
+}
+.node-dropdown option, .node-dropdown optgroup {
+  background-color: #0d1521;
+  color: #e2e8f0;
+}
 
 .divider-v { width: 1px; height: 20px; background: #1e2d3d; }
 

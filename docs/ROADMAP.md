@@ -90,36 +90,16 @@ Tujuan: Mendukung semua tipe node baru (Trigger, API, Condition, Notification) d
 
 ---
 
-## 🔄 Phase 2 — Node Types Lanjutan (IN PROGRESS)
+## ✅ Phase 2 — Node Types Lanjutan (SELESAI)
 
-**Goal:** Tambah node untuk power users dan enterprise use case.
+Fokus: Menambah tipe node untuk mendukung "real" business & developer workflow (seperti n8n / temporal).
 
-### 2.1 Transform Node
-- [ ] Script editor (JS expression / JSONata)
-- [ ] Input/output schema preview
-
-### 2.2 Loop Node
-- [ ] Iterate over array/collection
-- [ ] `maxIterations` guard
-- [ ] Handle: output per iteration + done
-
-### 2.3 Sub-Workflow Node
-- [ ] Embed workflow lain sebagai satu node
-- [ ] Dropdown pilih workflow dari catalog
-- [ ] Input/output variable mapping
-
-### 2.4 Approval Node
-- [ ] Human-in-the-loop gate
-- [ ] `approvers` list, `timeoutHours`, `fallback` action
-- [ ] Status: waiting / approved / rejected / timeout
-
-### 2.5 Delay / Wait Node
-- [ ] Timer dengan `duration` + `unit`
-- [ ] Visual countdown (runtime)
-
-### 2.6 Variable Node
-- [ ] Set/get shared context variables
-- [ ] Scope: local (workflow) atau global (cross-workflow)
+- [x] **Transform Node**: JavaScript / JSONata untuk manipulasi payload.
+- [x] **Loop Node**: Eksekusi sub-workflow atau array iteration.
+- [x] **Sub-Workflow Node**: Memanggil workflow lain sebagai child process.
+- [x] **Approval Node**: Jeda workflow sampai ada manual approval dari user/role tertentu.
+- [x] **Delay / Wait Node**: Pause eksekusi selama waktu tertentu atau hingga timestamp tertentu.
+- [x] **Variable Node**: Node untuk inisiasi atau update variable global/lokal flow.
 
 ---
 

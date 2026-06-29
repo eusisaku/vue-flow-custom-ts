@@ -33,6 +33,12 @@ export {
   isNotificationNode,
   isCommandNode,
   isFunctionNode,
+  isTransformNode,
+  isLoopNode,
+  isSubWorkflowNode,
+  isApprovalNode,
+  isDelayNode,
+  isVariableNode,
 } from './node-types'
 
 // ─── Workflow Status & Risk ───────────────────────────────────────────────────
@@ -160,6 +166,29 @@ export interface NodeEditForm {
   recipients: string
   template: string
   webhookUrl: string
+
+  // Transform (Phase 2)
+  script: string
+
+  // Loop (Phase 2)
+  arrayVar: string
+  maxIterations: number
+
+  // Sub-Workflow (Phase 2)
+  workflowId: string
+
+  // Approval (Phase 2)
+  approvers: string
+  timeoutHours: number
+
+  // Delay (Phase 2)
+  duration: number
+  unit: 'seconds' | 'minutes' | 'hours' | 'days'
+
+  // Variable (Phase 2)
+  varName: string
+  varValue: string
+  scope: 'local' | 'global'
 }
 
 // ─── App Navigation ───────────────────────────────────────────────────────────

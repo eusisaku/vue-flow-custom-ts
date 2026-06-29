@@ -34,11 +34,18 @@
           <span v-if="data.nodeType === 'command'" class="icon-terminal">&gt;_</span>
           <span v-else-if="data.nodeType === 'function'" class="icon-fn">ƒ</span>
           <span v-else-if="data.nodeType === 'decision'" class="icon-decision">⟨/⟩</span>
-          <!-- New types -->
+          <!-- Phase 1 types -->
           <span v-else-if="data.nodeType === 'trigger'" class="icon-trigger">⚡</span>
           <span v-else-if="data.nodeType === 'api-call'" class="icon-api">⇄</span>
           <span v-else-if="data.nodeType === 'condition'" class="icon-condition">?</span>
           <span v-else-if="data.nodeType === 'notification'" class="icon-notification">🔔</span>
+          <!-- Phase 2 types -->
+          <span v-else-if="data.nodeType === 'transform'" class="icon-transform">{ }</span>
+          <span v-else-if="data.nodeType === 'loop'" class="icon-loop">↻</span>
+          <span v-else-if="data.nodeType === 'sub-workflow'" class="icon-sub-workflow">⎘</span>
+          <span v-else-if="data.nodeType === 'approval'" class="icon-approval">✓</span>
+          <span v-else-if="data.nodeType === 'delay'" class="icon-delay">⏱</span>
+          <span v-else-if="data.nodeType === 'variable'" class="icon-variable">𝑥</span>
           <span v-else class="icon-default">●</span>
         </div>
 
@@ -141,6 +148,65 @@
           </div>
         </div>
 
+        <!-- TRANSFORM: script preview -->
+        <div v-else-if="data.nodeType === 'transform'" class="wf-node__info-block">
+          <div class="wf-info-row wf-info-row--template">
+            <span class="wf-info-template wf-info-mono">{{ transformData.script || 'return data;' }}</span>
+          </div>
+        </div>
+
+        <!-- LOOP: Array var + iteration -->
+        <div v-else-if="data.nodeType === 'loop'" class="wf-node__info-block">
+          <div class="wf-info-row">
+            <span class="wf-info-label">OVER</span>
+            <span class="wf-info-value wf-info-mono">{{ loopData.arrayVar || 'items' }}</span>
+          </div>
+          <div v-if="loopData.maxIterations" class="wf-info-row">
+            <span class="wf-info-label">MAX</span>
+            <span class="wf-info-value">{{ loopData.maxIterations }}</span>
+          </div>
+        </div>
+
+        <!-- SUB-WORKFLOW: ID -->
+        <div v-else-if="data.nodeType === 'sub-workflow'" class="wf-node__info-block">
+          <div class="wf-info-row">
+            <span class="wf-info-label">ID</span>
+            <span class="wf-info-value wf-info-mono">{{ subWorkflowData.workflowId || 'none' }}</span>
+          </div>
+        </div>
+
+        <!-- APPROVAL: Approvers + timeout -->
+        <div v-else-if="data.nodeType === 'approval'" class="wf-node__info-block">
+          <div class="wf-info-row">
+            <span class="wf-info-label">WHO</span>
+            <span class="wf-info-value wf-info-truncate">{{ approvalData.approvers || 'admin' }}</span>
+          </div>
+          <div v-if="approvalData.timeoutHours" class="wf-info-row">
+            <span class="wf-info-label">WAIT</span>
+            <span class="wf-info-value">{{ approvalData.timeoutHours }}h</span>
+          </div>
+        </div>
+
+        <!-- DELAY: Duration + unit -->
+        <div v-else-if="data.nodeType === 'delay'" class="wf-node__info-block">
+          <div class="wf-info-row">
+            <span class="wf-info-label">WAIT</span>
+            <span class="wf-info-value">{{ delayData.duration || 0 }} {{ delayData.unit || 'seconds' }}</span>
+          </div>
+        </div>
+
+        <!-- VARIABLE: Scope + name/val -->
+        <div v-else-if="data.nodeType === 'variable'" class="wf-node__info-block">
+          <div class="wf-info-row">
+            <span class="wf-info-label">SCOPE</span>
+            <span class="wf-info-value wf-info-chip wf-info-chip--amber">{{ variableData.scope?.toUpperCase() || 'LOCAL' }}</span>
+          </div>
+          <div class="wf-info-row">
+            <span class="wf-info-label">SET</span>
+            <span class="wf-info-value wf-info-mono">{{ variableData.varName || 'var' }} = {{ variableData.varValue || 'val' }}</span>
+          </div>
+        </div>
+
       </div><!-- /body -->
 
       <!-- Action Footer — handles selalu di DOM -->
@@ -165,6 +231,38 @@
             <Handle type="source" :position="Position.Bottom" id="condition-false" class="action-handle action-handle--false" />
             <span class="action-dot action-dot--failure"></span>
             False
+          </div>
+        </template>
+
+        <!-- Loop: item / done outputs -->
+        <template v-else-if="data.nodeType === 'loop'">
+          <div class="wf-action wf-action--true">
+            <Handle type="source" :position="Position.Bottom" id="loop-item" class="action-handle action-handle--true" />
+            <span class="action-dot action-dot--success"></span>
+            Item
+          </div>
+          <div class="wf-action wf-action--always">
+            <Handle type="source" :position="Position.Bottom" id="loop-done" class="action-handle action-handle--always" />
+            <span class="action-dot action-dot--always"></span>
+            Done
+          </div>
+        </template>
+
+        <!-- Approval: approved / rejected / timeout outputs -->
+        <template v-else-if="data.nodeType === 'approval'">
+          <div class="wf-action wf-action--true">
+            <Handle type="source" :position="Position.Bottom" id="approved" class="action-handle action-handle--true" />
+            <span class="action-dot action-dot--success"></span>
+            Approved
+          </div>
+          <div class="wf-action wf-action--false">
+            <Handle type="source" :position="Position.Bottom" id="rejected" class="action-handle action-handle--false" />
+            <span class="action-dot action-dot--failure"></span>
+            Rejected
+          </div>
+          <div class="wf-action wf-action--reset">
+            <Handle type="source" :position="Position.Bottom" id="timeout" class="action-handle action-handle--reset" />
+            Timeout
           </div>
         </template>
 
@@ -208,6 +306,12 @@ import type {
   ApiCallNodeData,
   ConditionNodeData,
   NotificationNodeData,
+  TransformNodeData,
+  LoopNodeData,
+  SubWorkflowNodeData,
+  ApprovalNodeData,
+  DelayNodeData,
+  VariableNodeData,
 } from '../../types'
 
 interface Props {
@@ -235,6 +339,12 @@ const triggerData = computed(() => props.data as TriggerNodeData)
 const apiData = computed(() => props.data as ApiCallNodeData)
 const conditionData = computed(() => props.data as ConditionNodeData)
 const notifData = computed(() => props.data as NotificationNodeData)
+const transformData = computed(() => props.data as TransformNodeData)
+const loopData = computed(() => props.data as LoopNodeData)
+const subWorkflowData = computed(() => props.data as SubWorkflowNodeData)
+const approvalData = computed(() => props.data as ApprovalNodeData)
+const delayData = computed(() => props.data as DelayNodeData)
+const variableData = computed(() => props.data as VariableNodeData)
 
 // ─── Condition badge (command / function / decision) ─────────────────────────
 const hasConditionLabel = computed(() => {
@@ -265,6 +375,12 @@ const NODE_BADGE_LABELS: Record<string, string> = {
   'api-call': 'API',
   'condition': 'CONDITION',
   'notification': 'NOTIFY',
+  'transform': 'TRANSFORM',
+  'loop': 'LOOP',
+  'sub-workflow': 'SUB-WF',
+  'approval': 'APPROVAL',
+  'delay': 'DELAY',
+  'variable': 'VAR',
 }
 const nodeTypeBadgeLabel = computed(() => NODE_BADGE_LABELS[props.data.nodeType] ?? props.data.nodeType.toUpperCase())
 
@@ -366,6 +482,20 @@ onBeforeUnmount(() => {
 .wf-node--notification { border-color: #f472b640; }
 .wf-node--notification:hover { border-color: #f472b6; box-shadow: 0 8px 40px rgba(244,114,182,0.15); }
 
+/* Phase 2 border accents */
+.wf-node--transform { border-color: #fca5a540; }
+.wf-node--transform:hover { border-color: #fca5a5; box-shadow: 0 8px 40px rgba(252,165,165,0.15); }
+.wf-node--loop { border-color: #6ee7b740; }
+.wf-node--loop:hover { border-color: #6ee7b7; box-shadow: 0 8px 40px rgba(110,231,183,0.15); }
+.wf-node--sub-workflow { border-color: #c4b5fd40; }
+.wf-node--sub-workflow:hover { border-color: #c4b5fd; box-shadow: 0 8px 40px rgba(196,181,253,0.15); }
+.wf-node--approval { border-color: #fdba7440; }
+.wf-node--approval:hover { border-color: #fdba74; box-shadow: 0 8px 40px rgba(253,186,116,0.15); }
+.wf-node--delay { border-color: #93c5fd40; }
+.wf-node--delay:hover { border-color: #93c5fd; box-shadow: 0 8px 40px rgba(147,197,253,0.15); }
+.wf-node--variable { border-color: #fcd34d40; }
+.wf-node--variable:hover { border-color: #fcd34d; box-shadow: 0 8px 40px rgba(252,211,77,0.15); }
+
 /* ─── Header ──────────────────────────────────────────────────────────────── */
 .wf-node__header {
   display: flex; align-items: flex-start; gap: 10px;
@@ -406,12 +536,24 @@ onBeforeUnmount(() => {
 .wf-icon--api-call  { background: #0a1f40; color: #38bdf8; font-size: 18px; }
 .wf-icon--condition { background: #1a1040; color: #a78bfa; font-size: 18px; font-weight: 900; }
 .wf-icon--notification { background: #2a0a28; color: #f472b6; font-size: 16px; }
+.wf-icon--transform { background: #3a1a2a; color: #fca5a5; font-size: 16px; font-family: var(--font-mono); }
+.wf-icon--loop { background: #0a3a2a; color: #6ee7b7; font-size: 18px; }
+.wf-icon--sub-workflow { background: #2a1a4a; color: #c4b5fd; font-size: 18px; }
+.wf-icon--approval { background: #3a2a0a; color: #fdba74; font-size: 16px; }
+.wf-icon--delay { background: #0a2a4a; color: #93c5fd; font-size: 16px; }
+.wf-icon--variable { background: #3a3a0a; color: #fcd34d; font-size: 18px; font-style: italic; }
 
 .icon-terminal  { font-family: var(--font-mono); font-size: 11px; font-weight: 900; }
 .icon-fn        { font-size: 22px; font-style: italic; }
 .icon-trigger   { font-size: 18px; }
 .icon-api       { font-size: 20px; }
 .icon-condition { font-size: 20px; font-weight: 900; }
+.icon-transform { font-size: 16px; font-weight: bold; }
+.icon-loop { font-size: 18px; font-weight: bold; }
+.icon-sub-workflow { font-size: 18px; }
+.icon-approval { font-size: 16px; font-weight: bold; }
+.icon-delay { font-size: 18px; }
+.icon-variable { font-size: 18px; font-weight: bold; font-family: serif; }
 
 /* ─── Meta ────────────────────────────────────────────────────────────────── */
 .wf-node__meta { flex: 1; min-width: 0; }
@@ -426,6 +568,12 @@ onBeforeUnmount(() => {
 .badge--api-call     { background: #0a1f40; color: #38bdf8; border: 1px solid #38bdf830; }
 .badge--condition    { background: #1a1040; color: #a78bfa; border: 1px solid #a78bfa30; }
 .badge--notification { background: #2a0a28; color: #f472b6; border: 1px solid #f472b630; }
+.badge--transform { background: #3a1a2a; color: #fca5a5; border: 1px solid #fca5a530; }
+.badge--loop { background: #0a3a2a; color: #6ee7b7; border: 1px solid #6ee7b730; }
+.badge--sub-workflow { background: #2a1a4a; color: #c4b5fd; border: 1px solid #c4b5fd30; }
+.badge--approval { background: #3a2a0a; color: #fdba74; border: 1px solid #fdba7430; }
+.badge--delay { background: #0a2a4a; color: #93c5fd; border: 1px solid #93c5fd30; }
+.badge--variable { background: #3a3a0a; color: #fcd34d; border: 1px solid #fcd34d30; }
 
 .wf-node__title    { font-size: 13px; font-weight: 600; color: #e2e8f0; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wf-node__subtitle { font-size: 11px; color: #4a5568; margin-top: 2px; }
