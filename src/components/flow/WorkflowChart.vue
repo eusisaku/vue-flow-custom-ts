@@ -21,9 +21,10 @@
       <Background variant="dots" :gap="28" :size="1.3" color="#1a2535" />
       <Controls position="bottom-left" />
       <MiniMap
+        v-if="elements.length > 0"
         :style="{ height: '140px', width: '185px', background: '#0a1020', border: '1px solid #1e2d3d', borderRadius: '10px' }"
-        :node-color="() => '#182030'"
-        :node-stroke-color="() => '#00e5a0'"
+        :node-color="getMinimapNodeColor"
+        :node-stroke-color="getMinimapNodeStrokeColor"
         :mask-color="'rgba(0,229,160,0.04)'"
       />
     </VueFlow>
@@ -56,8 +57,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, markRaw } from 'vue'
 import { VueFlow, useVueFlow, ConnectionMode } from '@vue-flow/core'
+import type { NodeTypesObject, EdgeTypesObject } from '@vue-flow/core'
 import type { Connection, EdgeUpdateEvent, NodeMouseEvent, EdgeMouseEvent } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
@@ -89,8 +91,8 @@ const { addEdges, addNodes, fitView, updateNodeInternals } = useVueFlow()
 
 // ─── State ───────────────────────────────────────────────────────────────────
 const defaultViewport = { x: 80, y: 60, zoom: 0.85 }
-const nodeTypes = { workflow: WorkflowNode }
-const edgeTypes = { workflow: WorkflowEdge }
+const nodeTypes = markRaw({ workflow: markRaw(WorkflowNode) }) as NodeTypesObject
+const edgeTypes = markRaw({ workflow: markRaw(WorkflowEdge) }) as EdgeTypesObject
 const elements = ref<FlowElement[]>([])
 const nodeCounter = ref(0)
 const edgeType = ref<EdgeType>(props.edgeTypeProp as EdgeType || 'success')
@@ -276,6 +278,72 @@ function addFunctionNode(): void {
   })
 }
 
+function addTriggerNode(): void {
+  const id = String(++nodeCounter.value)
+  elements.value.push({
+    id, type: 'workflow',
+    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
+    data: {
+      nodeType: 'trigger',
+      label: `${id}. New Trigger`,
+      subtitle: 'Webhook',
+      triggerType: 'webhook',
+      endpoint: '/api/webhook',
+      onEdit: (nid: string) => openEditByNodeId(nid)
+    }
+  })
+}
+
+function addApiCallNode(): void {
+  const id = String(++nodeCounter.value)
+  elements.value.push({
+    id, type: 'workflow',
+    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
+    data: {
+      nodeType: 'api-call',
+      label: `${id}. New API Call`,
+      subtitle: 'Fetch Data',
+      method: 'GET',
+      url: 'https://api.example.com/data',
+      onEdit: (nid: string) => openEditByNodeId(nid)
+    }
+  })
+}
+
+function addConditionNode(): void {
+  const id = String(++nodeCounter.value)
+  elements.value.push({
+    id, type: 'workflow',
+    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
+    data: {
+      nodeType: 'condition',
+      label: `${id}. New Condition`,
+      subtitle: 'Check Status',
+      leftOperand: '{{status}}',
+      operator: '==',
+      rightOperand: '200',
+      onEdit: (nid: string) => openEditByNodeId(nid)
+    }
+  })
+}
+
+function addNotificationNode(): void {
+  const id = String(++nodeCounter.value)
+  elements.value.push({
+    id, type: 'workflow',
+    position: { x: 150 + Math.random() * 350, y: 150 + Math.random() * 350 },
+    data: {
+      nodeType: 'notification',
+      label: `${id}. New Notification`,
+      subtitle: 'Send Slack',
+      channel: 'slack',
+      recipients: '#general',
+      template: 'Workflow completed successfully.',
+      onEdit: (nid: string) => openEditByNodeId(nid)
+    }
+  })
+}
+
 function onNodeClick({ node, event }: NodeMouseEvent): void {
   const target = event?.target as HTMLElement | null
   if (target?.closest('[data-expand-toggle]')) {
@@ -319,8 +387,8 @@ function onEdgeUpdate({ edge, connection }: EdgeUpdateEvent): void {
         ...el,
         source: connection.source ?? el.id,
         target: connection.target ?? (el as WorkflowEdgeElement).target,
-        sourceHandle: connection.sourceHandle,
-        targetHandle: connection.targetHandle
+        sourceHandle: connection.sourceHandle ?? undefined,
+        targetHandle: connection.targetHandle ?? undefined
       }
     }
     return el
@@ -385,10 +453,40 @@ function saveWorkspace(): void {
   }
 }
 
+function getMinimapNodeColor(node: any): string {
+  switch (node.data?.nodeType) {
+    case 'command': return '#0a3340'
+    case 'function': return '#2d1a4a'
+    case 'decision': return '#1a2d40'
+    case 'trigger': return '#2a2000'
+    case 'api-call': return '#0a1f40'
+    case 'condition': return '#1a1040'
+    case 'notification': return '#2a0a28'
+    default: return '#182030'
+  }
+}
+
+function getMinimapNodeStrokeColor(node: any): string {
+  switch (node.data?.nodeType) {
+    case 'command': return '#00e5c0'
+    case 'function': return '#a78bfa'
+    case 'decision': return '#38bdf8'
+    case 'trigger': return '#fbbf24'
+    case 'api-call': return '#38bdf8'
+    case 'condition': return '#a78bfa'
+    case 'notification': return '#f472b6'
+    default: return '#00e5a0'
+  }
+}
+
 // Expose methods for parent ref usage
 defineExpose({
   addCommandNode,
   addFunctionNode,
+  addTriggerNode,
+  addApiCallNode,
+  addConditionNode,
+  addNotificationNode,
   autoArrange,
   resetFlow,
   saveWorkspace

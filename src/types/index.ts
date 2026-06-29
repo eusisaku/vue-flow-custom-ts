@@ -1,53 +1,66 @@
 /**
  * === TYPE DEFINITIONS ===
  * Semua interface dan type untuk vue-flow-custom-ts
- * 
+ *
  * @module types/index
  */
 
-// ─── Workflow Status & Risk ─────────────────────────────────────────────────
+// ─── Re-export node types (discriminated union) ───────────────────────────────
+export type {
+  NodeType,
+  EdgeType,
+  NodeRunStatus,
+  BaseNodeData,
+  CommandItem,
+  CommandNodeData,
+  FunctionNodeData,
+  DecisionNodeData,
+  TriggerNodeData,
+  TriggerType,
+  ApiCallNodeData,
+  HttpMethod,
+  ConditionNodeData,
+  ConditionOperator,
+  NotificationNodeData,
+  NotificationChannel,
+  WorkflowNodeData,
+} from './node-types'
+
+export {
+  isTriggerNode,
+  isApiCallNode,
+  isConditionNode,
+  isNotificationNode,
+  isCommandNode,
+  isFunctionNode,
+} from './node-types'
+
+// ─── Workflow Status & Risk ───────────────────────────────────────────────────
 
 export type WorkflowStatus = 'OFF' | 'AUTO' | 'REQ' | 'LIVE'
 export type RiskLevel = 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
-export type NodeType = 'command' | 'function' | 'decision'
-export type EdgeType = 'success' | 'failure' | 'reset'
 export type StatusColor = 'cyan' | 'amber' | 'green' | 'red' | 'gray'
 
-// ─── Node Data ───────────────────────────────────────────────────────────────
+// ─── Edge Data ────────────────────────────────────────────────────────────────
 
-export interface CommandItem {
-  text: string
-  tag?: string
-  tagType?: 'true' | 'false'
-}
-
-export interface WorkflowNodeData {
-  nodeType: NodeType
-  label: string
-  subtitle: string
-  commands?: CommandItem[]
-  params?: string
-  bound?: string
-  conditionLabel?: string
-  conditionType?: 'true' | 'false' | ''
-  expanded?: boolean
-  onEdit?: (nodeId: string) => void
-}
-
-// ─── Flow Element ────────────────────────────────────────────────────────────
-
-export interface WorkflowNodeElement {
-  id: string
-  type: 'workflow'
-  position: { x: number; y: number }
-  data: WorkflowNodeData
-}
+import type { EdgeType } from './node-types'
 
 export interface WorkflowEdgeData {
   type: EdgeType
   sequence?: number
   label?: string
   labelType?: EdgeType
+}
+
+// ─── Flow Element ─────────────────────────────────────────────────────────────
+
+import type { WorkflowNodeData } from './node-types'
+
+export interface WorkflowNodeElement {
+  id: string
+  type: 'workflow'
+  position: { x: number; y: number }
+  data: WorkflowNodeData
 }
 
 export interface WorkflowEdgeElement {
@@ -89,7 +102,7 @@ export interface ConfirmConfig {
   confirmText: string
 }
 
-// ─── Toast ───────────────────────────────────────────────────────────────────
+// ─── Toast ────────────────────────────────────────────────────────────────────
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
@@ -99,19 +112,56 @@ export interface ToastMessage {
   type: ToastType
 }
 
-// ─── Edit Form ───────────────────────────────────────────────────────────────
+// ─── Edit Form ────────────────────────────────────────────────────────────────
+
+import type {
+  NodeType,
+  TriggerType,
+  HttpMethod,
+  ConditionOperator,
+  NotificationChannel,
+  CommandItem,
+} from './node-types'
 
 export interface NodeEditForm {
   nodeType: NodeType
   label: string
   subtitle: string
+  description: string
+
+  // Command / Function / Decision (existing)
   conditionLabel: string
   conditionType: 'true' | 'false' | ''
   commands: CommandItem[]
   params: string
   bound: string
+
+  // Trigger (new)
+  triggerType: TriggerType
+  cronExpr: string
+  endpoint: string
+  eventName: string
+
+  // API Call (new)
+  method: HttpMethod
+  url: string
+  headers: { key: string; value: string }[]
+  bodyTemplate: string
+  outputVar: string
+  timeoutMs: number
+
+  // Condition (new)
+  leftOperand: string
+  operator: ConditionOperator
+  rightOperand: string
+
+  // Notification (new)
+  channel: NotificationChannel
+  recipients: string
+  template: string
+  webhookUrl: string
 }
 
-// ─── App Navigation ──────────────────────────────────────────────────────────
+// ─── App Navigation ───────────────────────────────────────────────────────────
 
 export type AppView = 'catalog' | 'editor'

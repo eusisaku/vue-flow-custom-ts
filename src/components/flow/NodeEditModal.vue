@@ -7,12 +7,14 @@
           <div class="modal-header">
             <div class="modal-header__left">
               <div class="modal-icon" :class="'modal-icon--' + form.nodeType">
-                <template v-if="form.nodeType === 'command'">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-                </template>
-                <template v-else-if="form.nodeType === 'function'">
-                  <span class="mi-fn">ƒ</span>
-                </template>
+                <!-- Icons for each type -->
+                <template v-if="form.nodeType === 'command'"><span class="mi-icon">&gt;_</span></template>
+                <template v-else-if="form.nodeType === 'function'"><span class="mi-icon">ƒ</span></template>
+                <template v-else-if="form.nodeType === 'decision'"><span class="mi-icon">⟨/⟩</span></template>
+                <template v-else-if="form.nodeType === 'trigger'"><span class="mi-icon">⚡</span></template>
+                <template v-else-if="form.nodeType === 'api-call'"><span class="mi-icon">⇄</span></template>
+                <template v-else-if="form.nodeType === 'condition'"><span class="mi-icon">?</span></template>
+                <template v-else-if="form.nodeType === 'notification'"><span class="mi-icon">🔔</span></template>
               </div>
               <div>
                 <div class="modal-title">Edit Node</div>
@@ -29,33 +31,36 @@
             <!-- Node Type Toggle -->
             <div class="form-group">
               <label class="form-label">Node Type</label>
-              <div class="type-tabs">
-                <button class="type-tab" :class="{ 'type-tab--active type-tab--cmd': form.nodeType === 'command' }" @click="form.nodeType = 'command'">
-                  <span class="tab-icon">&gt;_</span> COMMAND
-                </button>
-                <button class="type-tab" :class="{ 'type-tab--active type-tab--fn': form.nodeType === 'function' }" @click="form.nodeType = 'function'">
-                  <span class="tab-icon tab-icon--fn">ƒ</span> FUNCTION
-                </button>
+              <div class="type-select-wrapper">
+                <select v-model="form.nodeType" class="form-select form-input--flex">
+                  <option value="command">Command</option>
+                  <option value="function">Function</option>
+                  <option value="decision">Decision</option>
+                  <option value="trigger">Trigger</option>
+                  <option value="api-call">API Call</option>
+                  <option value="condition">Condition</option>
+                  <option value="notification">Notification</option>
+                </select>
               </div>
             </div>
 
             <!-- Label -->
             <div class="form-group">
               <label class="form-label">Node Label</label>
-              <input v-model="form.label" class="form-input" placeholder="e.g. 1. Kumpulkan metrik host" />
+              <input v-model="form.label" class="form-input" placeholder="e.g. 1. Process Data" />
             </div>
 
             <!-- Subtitle -->
             <div class="form-group">
-              <label class="form-label">Subtitle / Description</label>
-              <input v-model="form.subtitle" class="form-input" placeholder="e.g. 5 command(s)" />
+              <label class="form-label">Subtitle</label>
+              <input v-model="form.subtitle" class="form-input" placeholder="e.g. description" />
             </div>
 
-            <!-- Condition Label -->
-            <div class="form-group">
+            <!-- Condition Label (for Command/Function/Decision) -->
+            <div v-if="['command', 'function', 'decision'].includes(form.nodeType)" class="form-group">
               <label class="form-label">
                 Condition Label
-                <span class="form-label__hint">(optional — e.g. IF: DISK_HIGH == FALSE)</span>
+                <span class="form-label__hint">(optional)</span>
               </label>
               <div class="form-row">
                 <input v-model="form.conditionLabel" class="form-input form-input--flex cmd-input" placeholder="IF: DISK_HIGH == FALSE" />
@@ -101,14 +106,105 @@
             </div>
 
             <!-- Function Params -->
-            <div v-if="form.nodeType === 'function'" class="form-group">
-              <label class="form-label">Function Name / Params</label>
-              <input v-model="form.params" class="form-input cmd-input" placeholder="e.g. getProduct" />
-            </div>
-            <div v-if="form.nodeType === 'function'" class="form-group">
-              <label class="form-label">Bound</label>
-              <input v-model="form.bound" class="form-input cmd-input" placeholder="e.g. 1 BOUND" />
-            </div>
+            <template v-if="form.nodeType === 'function'">
+              <div class="form-group">
+                <label class="form-label">Function Name / Params</label>
+                <input v-model="form.params" class="form-input cmd-input" placeholder="e.g. getProduct" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Bound</label>
+                <input v-model="form.bound" class="form-input cmd-input" placeholder="e.g. 1 BOUND" />
+              </div>
+            </template>
+
+            <!-- Trigger Settings -->
+            <template v-if="form.nodeType === 'trigger'">
+              <div class="form-group">
+                <label class="form-label">Trigger Type</label>
+                <select v-model="form.triggerType" class="form-select form-input--flex">
+                  <option value="webhook">Webhook</option>
+                  <option value="schedule">Schedule (Cron)</option>
+                  <option value="event">Event</option>
+                  <option value="manual">Manual</option>
+                </select>
+              </div>
+              <div v-if="form.triggerType === 'schedule'" class="form-group">
+                <label class="form-label">Cron Expression</label>
+                <input v-model="form.cronExpr" class="form-input cmd-input" placeholder="* * * * *" />
+              </div>
+              <div v-if="form.triggerType === 'webhook'" class="form-group">
+                <label class="form-label">Endpoint</label>
+                <input v-model="form.endpoint" class="form-input cmd-input" placeholder="/api/webhook" />
+              </div>
+              <div v-if="form.triggerType === 'event'" class="form-group">
+                <label class="form-label">Event Name</label>
+                <input v-model="form.eventName" class="form-input cmd-input" placeholder="user.created" />
+              </div>
+            </template>
+
+            <!-- API Call Settings -->
+            <template v-if="form.nodeType === 'api-call'">
+              <div class="form-group">
+                <label class="form-label">Method & URL</label>
+                <div class="form-row">
+                  <select v-model="form.method" class="form-select form-select--sm">
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="PATCH">PATCH</option>
+                    <option value="DELETE">DELETE</option>
+                  </select>
+                  <input v-model="form.url" class="form-input form-input--flex cmd-input" placeholder="https://api.example.com" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Output Variable</label>
+                <input v-model="form.outputVar" class="form-input cmd-input" placeholder="response" />
+              </div>
+            </template>
+
+            <!-- Condition Settings -->
+            <template v-if="form.nodeType === 'condition'">
+              <div class="form-group">
+                <label class="form-label">Expression</label>
+                <div class="form-row">
+                  <input v-model="form.leftOperand" class="form-input form-input--flex cmd-input" placeholder="{{ status }}" />
+                  <select v-model="form.operator" class="form-select form-select--sm">
+                    <option value="==">==</option>
+                    <option value="!=">!=</option>
+                    <option value=">">&gt;</option>
+                    <option value="<">&lt;</option>
+                    <option value=">=">&gt;=</option>
+                    <option value="<=">&lt;=</option>
+                    <option value="contains">contains</option>
+                  </select>
+                  <input v-model="form.rightOperand" class="form-input form-input--flex cmd-input" placeholder="200" />
+                </div>
+              </div>
+            </template>
+
+            <!-- Notification Settings -->
+            <template v-if="form.nodeType === 'notification'">
+              <div class="form-group">
+                <label class="form-label">Channel</label>
+                <select v-model="form.channel" class="form-select form-input--flex">
+                  <option value="email">Email</option>
+                  <option value="slack">Slack</option>
+                  <option value="webhook">Webhook</option>
+                  <option value="teams">Microsoft Teams</option>
+                  <option value="telegram">Telegram</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Recipients / Target</label>
+                <input v-model="form.recipients" class="form-input" placeholder="#general or email@example.com" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Message Template</label>
+                <textarea v-model="form.template" class="form-input cmd-input" rows="3" placeholder="Hello {{ user }}"></textarea>
+              </div>
+            </template>
+
           </div>
 
           <!-- Footer -->
@@ -170,24 +266,70 @@ const form = ref<NodeEditForm>({
   nodeType: 'command',
   label: '',
   subtitle: '',
+  description: '',
   conditionLabel: '',
   conditionType: '',
   commands: [],
   params: '',
-  bound: '1 BOUND'
+  bound: '1 BOUND',
+  triggerType: 'webhook',
+  cronExpr: '',
+  endpoint: '',
+  eventName: '',
+  method: 'GET',
+  url: '',
+  headers: [],
+  bodyTemplate: '',
+  outputVar: '',
+  timeoutMs: 5000,
+  leftOperand: '',
+  operator: '==',
+  rightOperand: '',
+  channel: 'slack',
+  recipients: '',
+  template: '',
+  webhookUrl: ''
 })
 
 function loadForm(): void {
-  const d = props.nodeData
+  const d = props.nodeData as any
   form.value = {
     nodeType: d?.nodeType ?? 'command',
     label: d?.label ?? '',
     subtitle: d?.subtitle ?? '',
+    description: d?.description ?? '',
+    
+    // Command / Function / Decision
     conditionLabel: d?.conditionLabel ?? '',
     conditionType: d?.conditionType ?? '',
     commands: (d?.commands ?? []).map((c: CommandItem) => ({ ...c })),
     params: d?.params ?? '',
-    bound: d?.bound ?? '1 BOUND'
+    bound: d?.bound ?? '1 BOUND',
+
+    // Trigger
+    triggerType: d?.triggerType ?? 'webhook',
+    cronExpr: d?.cronExpr ?? '',
+    endpoint: d?.endpoint ?? '',
+    eventName: d?.eventName ?? '',
+
+    // API Call
+    method: d?.method ?? 'GET',
+    url: d?.url ?? '',
+    headers: d?.headers ?? [],
+    bodyTemplate: d?.bodyTemplate ?? '',
+    outputVar: d?.outputVar ?? '',
+    timeoutMs: d?.timeoutMs ?? 5000,
+
+    // Condition
+    leftOperand: d?.leftOperand ?? '',
+    operator: d?.operator ?? '==',
+    rightOperand: d?.rightOperand ?? '',
+
+    // Notification
+    channel: d?.channel ?? 'slack',
+    recipients: d?.recipients ?? '',
+    template: d?.template ?? '',
+    webhookUrl: d?.webhookUrl ?? ''
   }
 }
 
@@ -200,7 +342,7 @@ function closeModal(): void {
 }
 
 function addCommand(): void {
-  form.value.commands.push({ text: '', tag: '', tagType: '' })
+  form.value.commands.push({ text: '', tag: '', tagType: 'true' }) // Or no tag
 }
 
 function removeCommand(idx: number): void {
@@ -208,19 +350,50 @@ function removeCommand(idx: number): void {
 }
 
 function saveNode(): void {
-  const payload: Partial<WorkflowNodeData> = {
+  const payload: any = {
     nodeType: form.value.nodeType,
     label: form.value.label,
-    subtitle: form.value.subtitle || (form.value.nodeType === 'command'
-      ? `${form.value.commands.length} command(s)`
-      : form.value.params),
-    conditionLabel: form.value.conditionLabel || undefined,
-    conditionType: (form.value.conditionType as 'true' | 'false' | '') || undefined,
-    commands: form.value.commands.filter(c => c.text),
-    params: form.value.params,
-    bound: form.value.bound
+    subtitle: form.value.subtitle,
+    description: form.value.description
   }
-  emit('save', { nodeId: props.nodeId ?? '', data: payload })
+
+  // Populate fields based on type
+  if (['command', 'function', 'decision'].includes(form.value.nodeType)) {
+    payload.conditionLabel = form.value.conditionLabel || undefined
+    payload.conditionType = (form.value.conditionType as 'true' | 'false' | '') || undefined
+  }
+
+  if (form.value.nodeType === 'command') {
+    payload.commands = form.value.commands.filter((c: CommandItem) => c.text)
+    if (!payload.subtitle) payload.subtitle = `${payload.commands.length} command(s)`
+  } else if (form.value.nodeType === 'function') {
+    payload.params = form.value.params
+    payload.bound = form.value.bound
+    if (!payload.subtitle) payload.subtitle = form.value.params
+  } else if (form.value.nodeType === 'trigger') {
+    payload.triggerType = form.value.triggerType
+    if (form.value.triggerType === 'schedule') payload.cronExpr = form.value.cronExpr
+    if (form.value.triggerType === 'webhook') payload.endpoint = form.value.endpoint
+    if (form.value.triggerType === 'event') payload.eventName = form.value.eventName
+  } else if (form.value.nodeType === 'api-call') {
+    payload.method = form.value.method
+    payload.url = form.value.url
+    payload.headers = form.value.headers
+    payload.bodyTemplate = form.value.bodyTemplate
+    payload.outputVar = form.value.outputVar
+    payload.timeoutMs = form.value.timeoutMs
+  } else if (form.value.nodeType === 'condition') {
+    payload.leftOperand = form.value.leftOperand
+    payload.operator = form.value.operator
+    payload.rightOperand = form.value.rightOperand
+  } else if (form.value.nodeType === 'notification') {
+    payload.channel = form.value.channel
+    payload.recipients = form.value.recipients
+    payload.template = form.value.template
+    payload.webhookUrl = form.value.webhookUrl
+  }
+
+  emit('save', { nodeId: props.nodeId ?? '', data: payload as Partial<WorkflowNodeData> })
   closeModal()
 }
 
@@ -257,7 +430,13 @@ function executeDelete(): void {
 }
 .modal-icon--command { background: #0a3340; color: #00e5c0; font-size: 13px; font-family: var(--font-mono); }
 .modal-icon--function { background: #2d1a4a; color: #a78bfa; font-size: 22px; font-style: italic; }
-.mi-fn { font-size: 22px; font-style: italic; }
+.modal-icon--decision { background: #1a2d40; color: #38bdf8; font-size: 12px; }
+.modal-icon--trigger { background: #2a2000; color: #fbbf24; font-size: 20px; }
+.modal-icon--api-call { background: #0a1f40; color: #38bdf8; font-size: 20px; }
+.modal-icon--condition { background: #1a1040; color: #a78bfa; font-size: 20px; font-weight: 900; }
+.modal-icon--notification { background: #2a0a28; color: #f472b6; font-size: 20px; }
+
+.mi-icon { font-size: 20px; font-weight: 700; }
 .modal-title { font-size: 15px; font-weight: 700; color: #e2e8f0; }
 .modal-subtitle { font-size: 11px; color: #4a5568; margin-top: 2px; font-family: var(--font-mono); }
 .modal-close {
@@ -305,20 +484,7 @@ function executeDelete(): void {
 }
 .form-select:focus { border-color: #00e5a060; }
 .form-select--sm { min-width: 110px; }
-
-.type-tabs { display: flex; gap: 6px; }
-.type-tab {
-  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 8px 12px; border-radius: 8px; border: 1px solid #1e2d3d;
-  background: #080e17; font-size: 11px; font-weight: 700;
-  letter-spacing: 0.07em; color: #4a5568; cursor: pointer; transition: all 0.2s;
-}
-.type-tab:hover { border-color: #2d4060; color: #94a3b8; }
-.type-tab--active { border-color: transparent; }
-.type-tab--cmd.type-tab--active { background: #0a3340; color: #00e5c0; border-color: #00e5c040; }
-.type-tab--fn.type-tab--active { background: #2d1a4a; color: #a78bfa; border-color: #a78bfa40; }
-.tab-icon { font-family: var(--font-mono); font-weight: 900; }
-.tab-icon--fn { font-style: italic; font-size: 15px; }
+.type-select-wrapper { display: flex; gap: 6px; }
 
 .cmd-list { display: flex; flex-direction: column; gap: 6px; }
 .cmd-empty {

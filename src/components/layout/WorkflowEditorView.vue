@@ -26,6 +26,22 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
             Func Node
           </button>
+          
+          <div class="divider-v"></div>
+
+          <!-- New Node Types -->
+          <button class="btn-action btn-trigger" @click="addTrigger">
+            <span>⚡</span> Trigger
+          </button>
+          <button class="btn-action btn-api" @click="addApiCall">
+            <span>⇄</span> API
+          </button>
+          <button class="btn-action btn-condition" @click="addCondition">
+            <span>?</span> Cond
+          </button>
+          <button class="btn-action btn-notif" @click="addNotification">
+            <span>🔔</span> Notif
+          </button>
           <div class="divider-v"></div>
           <button class="btn-action" @click="cycleStatus">
             <span class="status-indicator" :class="'status--' + workflowStatus.toLowerCase()"></span>
@@ -165,6 +181,22 @@ function addFunction(): void {
   workflowChartRef.value?.addFunctionNode()
 }
 
+function addTrigger(): void {
+  workflowChartRef.value?.addTriggerNode()
+}
+
+function addApiCall(): void {
+  workflowChartRef.value?.addApiCallNode()
+}
+
+function addCondition(): void {
+  workflowChartRef.value?.addConditionNode()
+}
+
+function addNotification(): void {
+  workflowChartRef.value?.addNotificationNode()
+}
+
 function arrangeGraph(): void {
   workflowChartRef.value?.autoArrange()
 }
@@ -230,6 +262,14 @@ function confirmSaveWorkflow(): void {
 .btn-cmd:hover { background: #0c3e4d; border-color: rgba(0, 229, 192, 0.5); color: #00e5c0; }
 .btn-func { background: #2d1a4a; color: #a78bfa; border: 1px solid rgba(167, 139, 250, 0.3); }
 .btn-func:hover { background: #37205a; border-color: rgba(167, 139, 250, 0.5); color: #a78bfa; }
+.btn-trigger { background: #2a2000; color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); }
+.btn-trigger:hover { background: #3a2a00; border-color: rgba(251, 191, 36, 0.5); color: #fbbf24; }
+.btn-api { background: #0a1f40; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+.btn-api:hover { background: #0c2a55; border-color: rgba(56, 189, 248, 0.5); color: #38bdf8; }
+.btn-condition { background: #1a1040; color: #a78bfa; border: 1px solid rgba(167, 139, 250, 0.3); }
+.btn-condition:hover { background: #231555; border-color: rgba(167, 139, 250, 0.5); color: #a78bfa; }
+.btn-notif { background: #2a0a28; color: #f472b6; border: 1px solid rgba(244, 114, 182, 0.3); }
+.btn-notif:hover { background: #3a0d37; border-color: rgba(244, 114, 182, 0.5); color: #f472b6; }
 
 .btn-primary {
   display: flex; align-items: center; gap: 6px;
